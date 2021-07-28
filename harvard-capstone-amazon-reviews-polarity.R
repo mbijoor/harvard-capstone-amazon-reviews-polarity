@@ -1,0 +1,2021 @@
+#' ---
+#' title: "Amazon Reviews  \n Sentiment Analysis/Text Classification  \n Choose Your Own Project  \n A Harvard Capstone Project"
+#' author: "Manoj Bijoor"
+#' email: manoj.bijoor@gmail.com
+#' date: "`r format(Sys.time(), '%B %d, %Y')`"
+#' output: 
+#'   pdf_document: 
+#'     latex_engine: xelatex
+#'     number_sections: yes
+#'     keep_tex: yes
+#'     keep_md: yes
+#'     df_print: kable
+#'     highlight: pygments
+#'     extra_dependencies: "subfig"
+#'   md_document:
+#'     variant: markdown_github 
+#'     # check https://bookdown.org/yihui/rmarkdown/markdown-document.html#markdown-variants
+#'   github_document:
+#'     toc: true
+#'     toc_depth: 5
+#'     pandoc_args: --webtex
+#'     # pandoc_args: ['--lua-filter', 'math-github.lua']
+#'   html_document:
+#'     keep_md: true
+#'     code_folding: hide
+#' # urlcolor: blue
+#' # linkcolor: blue
+#' #citecolor: blue
+#' #geometry: margin=1in
+#' always_allow_html: true
+#' links-as-notes: true
+#' header-includes:
+#'   \usepackage[utf8]{inputenc}
+#'   \usepackage[english]{babel}
+#'   \usepackage{bookmark}
+#'   \usepackage[]{hyperref}
+#'   \hypersetup{
+#'     backref,
+#'     pdftitle={"Amazon Review Polarity Harvard Capstone"},
+#'     bookmarks=true,
+#'     bookmarksnumbered=true,
+#'     bookmarksopen=true,
+#'     bookmarksopenlevel=3,
+#'     pdfpagemode=FullScreen,
+#'     pdfstartpage=1,
+#'     hyperindex=true,
+#'     pageanchor=true,
+#'     colorlinks=true,
+#'     linkcolor=blue,
+#'     filecolor=magenta,      
+#'     urlcolor=cyan
+#'     }
+#'   \usepackage{amsmath}
+#'   \usepackage{pdflscape}
+#'   \usepackage[titles]{tocloft}
+#'   \usepackage{tocloft}
+#'   \usepackage{titlesec}
+#'   \usepackage{longtable}
+#'   \usepackage{xpatch}
+#'   \usepackage[T1]{fontenc}
+#'   \usepackage{imakeidx}
+#'   \makeindex[columns=3, title=Alphabetical Index, intoc]
+#' 
+#'   # \usepackage{amssymb}
+#'   # \usepackage{mathtools}
+#'   # \usepackage{unicode-math}
+#'   # \usepackage{fontspec}
+#'   # \usepackage{letltxmacro}%
+#'   # \usepackage{float}
+#'   # \usepackage{flafter}
+#'   # \usepackage[titles]{tocloft}
+#' ---
+#' 
+#' 
+## ----setup, include=FALSE----------------------------------------------
+knitr::knit_hooks$set(time_it = local({
+  now <- NULL
+  function(before, options) {
+    if (before) {
+      # record the current time before each chunk
+      now <<- Sys.time()
+    } else {
+      # calculate the time difference after a chunk
+      res <- difftime(Sys.time(), now)
+      # return a character string to show the time
+      # paste("Time for this code chunk to run:", res)
+      paste("Time for the chunk", options$label, "to run:", res)
+    }
+  }
+}))
+
+# knit_hooks$get("inline")
+# knitr::opts_chunk$set(fig.pos = "!H", out.extra = "")
+knitr::opts_chunk$set(echo = TRUE,
+                      fig.path = "figures/")
+
+# Beware, using the "time_it" hook messes up fig.cap, \label, \ref
+# knitr::opts_chunk$set(time_it = TRUE)
+#knitr::opts_chunk$set(eval = FALSE)
+
+#' 
+#' 
+## ---- include=FALSE, eval=FALSE----------------------------------------
+## options(tinytex.verbose = TRUE)
+## 
+## # set pandoc stack size
+## stack_size <- getOption("pandoc.stack.size", default = "100000000")
+## args <- c(c("+RTS", paste0("-K", stack_size), "-RTS"), args)
+
+#' 
+#' 
+## ---- include=FALSE, echo=FALSE----------------------------------------
+# library(dplyr)
+# library(tidyr)
+# library(purrr)
+# library(readr)
+library(tidyverse)
+library(textrecipes)
+library(tidymodels)
+library(tidytext)
+library(ngram)
+library(keras)
+library(stopwords)
+
+# Used in Baseline model
+library(hardhat)
+
+# BERT setup in its own section
+# library(keras)
+# library(tfdatasets)
+# library(reticulate)
+# library(tidyverse)
+# library(lubridate)
+# library(tfhub)
+# import("tensorflow_text")
+# o_nlp <- import("official.nlp")
+# 
+# Sys.setenv(TFHUB_CACHE_DIR="C:/Users/bijoor/.cache/tfhub_modules")
+# Sys.getenv("TFHUB_CACHE_DIR")
+
+set.seed(234)
+
+# Start the clock!
+# ptm <- proc.time()
+Sys.time()
+
+#' 
+#' 
+## ---- include=FALSE, echo=FALSE----------------------------------------
+  library(ggplot2)
+  library(kableExtra)
+
+#' 
+#' <!-- ------------------------------ -->
+#' 
+#' \bookmark[dest=TitlePage]{Title Page}
+#' 
+#' \pagenumbering{roman}     <!-- first page with Roman numbering -->
+#' 
+#' \newpage                  <!-- new page -->
+#' 
+#' <!-- ------------------------------ -->
+#' 
+#' \newpage 
+#' 
+#' \begin{center}
+#' 
+#' \hypertarget{Abstract}{}
+#' \large{Abstract}
+#' \bookmark[dest=Abstract]{Abstract}
+#' 
+#' \end{center}
+#' 
+#' \bigskip
+#' 
+#' Deriving truth and insight from a pile of data is a powerful but error-prone job. 
+#' 
+#' This project offers an empirical exploration on the use of Neural networks for text classification using the Amazon Reviews Polarity dataset. 
+#' 
+#' Text classification algorithms are at the heart of a variety of software systems that process text data at scale.
+#' 
+#' One common type of text classification is sentiment analysis, whose goal is to identify the polarity of text content: the type of opinion it expresses. This can take the form of a binary like/dislike rating, or a more granular set of options, such as a star rating from 1 to 5. Examples of sentiment analysis include analyzing Twitter posts to determine if people liked the Black Panther movie, or extrapolating the general public’s opinion of a new brand of Nike shoes from Walmart reviews.
+#' 
+#' Algorithms such as regularized linear models, support vector machines, and naive Bayes models are used to predict outcomes from predictors including text data. These algorithms use a shallow (single) mapping. In contrast, Deep learning models approach the same tasks and have the same goals, but the algorithms involved are different. Deep learning models are "deep" in the sense that they use multiple layers to learn how to map from input features to output outcomes.
+#' 
+#' Deep learning models can be effective for text prediction problems because they use these multiple layers to capture complex relationships in language.
+#' 
+#' The layers in a deep learning model are connected in a network and these models are called Neural Networks.
+#' 
+#' Neural language models (or continuous space language models) use continuous representations or embeddings of words to make their predictions. These models make use of Neural networks.
+#' 
+#' Continuous space embeddings help to alleviate the curse of dimensionality in language modeling: as language models are trained on larger and larger texts, the number of unique words (the vocabulary) increases. The number of possible sequences of words increases exponentially with the size of the vocabulary, causing a data sparsity problem because of the exponentially many sequences. Thus, statistics are needed to properly estimate probabilities. Neural networks avoid this problem by representing words in a distributed way, as non-linear combinations of weights in a neural net. 
+#' 
+#' Instead of using neural net language models to produce actual probabilities, it is common to instead use the distributed representation encoded in the networks' "hidden" layers as representations of words; each word is then mapped onto an n-dimensional real vector called the word embedding, where n is the size of the layer just before the output layer. 
+#' An alternate description is that a neural net approximates the language function and models semantic relations between words as linear combinations, capturing a form of compositionality. 
+#' 
+#' In this project we will cover four network architectures, namely DNN, CNN, sepCNN and BERT. We will also first implement a Baseline linear classifier model which serves the purpose of comparison with the deep learning techniques.  
+#' 
+#' For metrics we will use the default performance parameters for binary classification which are Accuracy, Loss and ROC AUC (area under the receiver operator characteristic curve).
+#' 
+#' <!-- ------------------------------ -->
+#' 
+#' \newpage 
+#' \clearpage
+#' \phantomsection
+#' \setcounter{secnumdepth}{5}
+#' \setcounter{tocdepth}{5}
+#' 
+#' \cleardoublepage <!-- ensure that the hypertarget is on the same page as the TOC heading -->
+#' \hypertarget{toc}{} <!-- set the hypertarget -->
+#' \bookmark[dest=toc,level=chapter]{\contentsname}
+#' \tableofcontents
+#' 
+#' \clearpage
+#' 
+#' <!-- ------------------------------ -->
+#' <!-- \renewcommand{\theHsection}{\thepart.section.\thesection} -->
+#' 
+#' \newpage
+#' \clearpage
+#' \phantomsection
+#' # List of tables{-}
+#' \renewcommand{\listtablename}{} <!-- removes default section name -->
+#' 
+#' \listoftables
+#' \clearpage
+#' 
+#' \newpage
+#' \clearpage
+#' \phantomsection
+#' # List of figures{-}
+#' \renewcommand{\listfigurename}{}
+#' 
+#' \listoffigures
+#' \clearpage
+#' 
+#' \newpage
+#' \clearpage
+#' \phantomsection
+#' \newcommand{\listequationsname}{List of Equations}
+#' \newlistof{equations}{equ}{\listequationsname}
+#' \newcommand{\equations}[1]{%
+#' \refstepcounter{equations}
+#' \addcontentsline{equ}{equations}{ \protect\numberline{\theequations}#1}\par}
+#' \xpretocmd{\listofequations}{\addcontentsline{toc}{section}{\listequationsname}}{}{}
+#' 
+#' \renewcommand{\listequationsname}{}
+#' 
+#' \listofequations
+#' \clearpage
+#' 
+#' <!-- ------------------------------ -->
+#' 
+#' \newpage
+#' 
+#' \pagenumbering{arabic} 
+#' 
+#' <!-- ------------------------------ -->
+#' 
+#' \newpage
+#' # Project Overview: Amazon Reviews Polarity
+#' 
+#' ## Introduction
+#' 
+#' Deriving truth and insight from a pile of data is a powerful but error-prone job. 
+#' 
+#' Text classification algorithms are at the heart of a variety of software systems that process text data at scale.
+#' 
+#' One common type of text classification is sentiment analysis, whose goal is to identify the polarity of text content: the type of opinion it expresses. This can take the form of a binary like/dislike rating, or a more granular set of options, such as a star rating from 1 to 5. Examples of sentiment analysis include analyzing Twitter posts to determine if people liked the Black Panther movie, or extrapolating the general public’s opinion of a new brand of Nike shoes from Walmart reviews.
+#' 
+#' Algorithms such as regularized linear models, support vector machines, and naive Bayes models are used to predict outcomes from predictors including text data. These algorithms use a shallow (single) mapping. In contrast, Deep learning models approach the same tasks and have the same goals, but the algorithms involved are different. Deep learning models are "deep" in the sense that they use multiple layers to learn how to map from input features to output outcomes.
+#' 
+#' Deep learning models can be effective for text prediction problems because they use these multiple layers to capture complex relationships in language.
+#' 
+#' The layers in a deep learning model are connected in a network and these models are called neural networks.   
+#' 
+#' ### Neural networks  
+#' 
+#' Neural language models (or continuous space language models) use continuous representations or [embeddings of words](https://en.wikipedia.org/wiki/Word_embedding) to make their predictions.[ Karpathy, Andrej. "The Unreasonable Effectiveness of Recurrent Neural Networks"](https://karpathy.github.io/2015/05/21/rnn-effectiveness/) These models make use of [Neural networks](https://en.wikipedia.org/wiki/Artificial_neural_network).
+#' 
+#' Continuous space embeddings help to alleviate the [curse of dimensionality](https://en.wikipedia.org/wiki/Curse_of_dimensionality) in language modeling: as language models are trained on larger and larger texts, the number of unique words (the vocabulary) increases.[Heaps' law](https://en.wikipedia.org/wiki/Heaps%27_law). The number of possible sequences of words increases exponentially with the size of the vocabulary, causing a data sparsity problem because of the exponentially many sequences. Thus, statistics are needed to properly estimate probabilities. Neural networks avoid this problem by representing words in a distributed way, as non-linear combinations of weights in a neural net.[Bengio, Yoshua (2008). "Neural net language models". Scholarpedia. 3. p. 3881. Bibcode:2008SchpJ...3.3881B. doi:10.4249/scholarpedia.3881](https://ui.adsabs.harvard.edu/abs/2008SchpJ...3.3881B/abstract) An alternate description is that a neural net approximates the language function.
+#' 
+#' Instead of using neural net language models to produce actual probabilities, it is common to instead use the distributed representation encoded in the networks' "hidden" layers as representations of words;  
+#' A hidden layer is a synthetic layer in a neural network between the input layer (that is, the features) and the output layer (the prediction). Hidden layers typically contain an activation function such as [ReLU](https://developers.google.com/machine-learning/glossary?utm_source=DevSite&utm_campaign=Text-Class-Guide&utm_medium=referral&utm_content=glossary&utm_term=sepCNN#rectified-linear-unit-relu) for training. A deep neural network contains more than one hidden layer. Each word is then mapped onto an n-dimensional real vector called the word embedding, where n is the size of the layer just before the output layer. The representations in skip-gram models for example have the distinct characteristic that they model semantic relations between words as [linear combinations](https://en.wikipedia.org/wiki/Linear_combination), capturing a form of [compositionality](https://en.wikipedia.org/wiki/Principle_of_compositionality). 
+#' 
+#' 
+#' In this project we will cover four network architectures, namely:
+#' 
+#' 1. DNN - Dense Neural Network - a bridge between the "shallow" learning approaches and the other 3 - CNN, sepCNN, BERT.  
+#' 
+#' 2. CNN - Convolutional Neural Network - advanced architecture appropriate for text data because they can capture specific local patterns.  
+#' 
+#' 3. sepCNN - Depthwise Separable Convolutional Neural Network.  
+#' 
+#' 4. BERT - Bidirectional Encoder Representations from Transformers.  
+#' 
+#' We will also first implement a Baseline linear classifier model which serves the purpose of comparison with the deep learning techniques we will implement later on, and also as a succinct summary of a basic supervised machine learning analysis for text.  
+#' 
+#' This linear baseline is a regularized linear model trained on the same data set, using tf-idf weights and 5000 tokens.  
+#' 
+#' For metrics we will use the default performance parameters for binary classification which are Accuracy, Loss and ROC AUC (area under the receiver operator characteristic curve).
+#' 
+#' We will also use the confusion matrix to get an overview of our model performance, as it includes rich information.
+#' 
+#' We will use tidymodels packages along with Tensorflow, the R interface to Keras. See [Allaire, JJ, and François Chollet. 2021. keras: R Interface to ’Keras’](https://CRAN.R-project.org/package=keras) for preprocessing, modeling, and evaluation, and [Silge, Julia, and David Robinson. 2017. Text Mining with R: A Tidy Approach. 1st ed. O’Reilly Media, Inc.](https://www.tidytextmining.com/), [Supervised Machine Learning for Text Analysis in R, by Emil Hvitfeldt and Julia Silge.](https://smltar.com/) and [Tidy Modeling with R, Max Kuhn and Julia Silge, Version 0.0.1.9010, 2021-07-19](https://www.tmwr.org/) and how can we forget [Introduction to Data Science, Data Analysis and Prediction Algorithms with R - Rafael A. Irizarry, 2021-07-03](https://rafalab.github.io/dsbook/).  
+#' 
+#' The keras R package provides an interface for R users to Keras, a high-level API for building neural networks.
+#' 
+#' This project will use some key machine learning best practices for solving text classification problems.  
+#' Here’s what you’ll learn:
+#' 
+#' 1. The high-level, end-to-end workflow for solving text classification problems using machine learning
+#' 2. How to choose the right model for your text classification problem
+#' 3. How to implement your model of choice using TensorFlow with Keras acting as an interface for the TensorFlow library
+#' 
+#' I have used/mentioned several references throughout the project.  
+#' 
+#' This project depends on python and R software for Tensorflow and Keras that needs to be installed both inside and outside of R. As each individual's environment may be different, I cannot automate this part in my code.
+#' 
+#' R side:  
+#' https://cran.r-project.org/  
+#' https://tensorflow.rstudio.com/installation/  
+#' https://tensorflow.rstudio.com/installation/gpu/local_gpu/  
+#' 
+#' Python side:  
+#' https://www.tensorflow.org/install  
+#' https://www.anaconda.com/products/individual  
+#' https://keras.io/  
+#' 
+#' Instead of cluttering code with comments, I ask you to please use these references and the rstudio help (?cmd/??cmd) if you are not very familiar with any specific command.  Most commands are pretty self explanatory if you are even a little familiar with R.
+#' 
+#' Here are some more references:  
+#' 
+#' ## References
+#' 
+#' [Tensorflow](https://www.tensorflow.org/) is an end-to-end open source platform for machine learning. It has a comprehensive, flexible ecosystem of tools, libraries and community resources that lets researchers push the state-of-the-art in ML and developers easily build and deploy ML powered applications.  
+#' 
+#' The [TensorFlow Hub](https://tfhub.dev/) lets you search and discover hundreds of trained, ready-to-deploy machine learning models in one place.
+#' 
+#' [Tensorflow for R](https://tensorflow.rstudio.com/) provides an R interface for Tensorflow.  
+#' 
+#' [Tidy Modeling with R](https://www.tmwr.org/)  
+#' 
+#' [Tinytex](https://yihui.org/tinytex/)  
+#' I have used tinytex in code chunks.  
+#' 
+#' [Latex](https://www.overleaf.com/learn/latex)  
+#' I have used Latex beyond the very basic provided by default templates in RStudio. Too numerous to explain. Though that much is not needed, I have used it to learn and make better pdf docs.  
+#' 
+#' [Rmarkdown](https://bookdown.org/yihui/rmarkdown)  
+#' 
+#' 
+#' \newpage
+#' ## Text Classification Workflow
+#' 
+#' Here’s a high-level overview of the workflow used to solve machine learning problems:
+#' 
+#' Step 1: Gather Data  
+#' Step 2: Explore Your Data  
+#' Step 2.5: Choose a Model*  
+#' Step 3: Prepare Your Data  
+#' Step 4: Build, Train, and Evaluate Your Model  
+#' Step 5: Tune Hyperparameters  
+#' Step 6: Deploy Your Model  
+#' 
+#' The following sections explain each step in detail, and how to implement them for text data.
+#' 
+#' ### Gather Data
+#' Gathering data is the most important step in solving any supervised machine learning problem. Your text classifier can only be as good as the dataset it is built from.
+#' 
+#' Here are some important things to remember when collecting data:
+#' 
+#' 1. If you are using a public API, understand the limitations of the API before using them. For example, some APIs set a limit on the rate at which you can make queries.  
+#' 
+#' 2. The more training examples/samples you have, the better. This will help your model generalize better.  
+#' 
+#' 3. Make sure the number of samples for every class or topic is not overly imbalanced. That is, you should have comparable number of samples in each class.  
+#' 
+#' 4. Make sure that your samples adequately cover the space of possible inputs, not only the common cases.  
+#' 
+#' This dataset contains amazon reviews posted by people on the Amazon website, and is a classic example of a sentiment analysis problem.
+#' 
+#' Amazon Review Polarity Dataset - Version 3, Updated 09/09/2015
+#' 
+#' 
+#' ORIGIN
+#' 
+#' The Amazon reviews dataset consists of reviews from amazon. The data span a period of 18 years, including ~35 million reviews up to March 2013. Reviews include product and user information, ratings, and a plaintext review. For more information, please refer to the following paper: [J. McAuley and J. Leskovec. Hidden factors and hidden topics: Understanding rating dimensions with review text. In Proceedings of the 7th ACM Conference on Recommender Systems, RecSys ’13, pages 165–172, New York, NY, USA, 2013. ACM](https://cs.stanford.edu/people/jure/pubs/reviews-recsys13.pdf).
+#' 
+#' The Amazon reviews polarity dataset was constructed by Xiang Zhang (xiang.zhang@nyu.edu) from the above dataset. It is used as a text classification benchmark in the following paper: Xiang Zhang, Junbo Zhao, Yann LeCun. [Character-level Convolutional Networks for Text Classification](https://arxiv.org/abs/1509.01626).  Advances in Neural Information Processing Systems 28 (NIPS 2015).
+#' 
+#' Here is an Abstract of that paper:  
+#' 
+#' This article offers an empirical exploration on the use of character-level convolutional networks (ConvNets) for text classification. We constructed several large-scale datasets to show that character-level convolutional networks could achieve state-of-the-art or competitive results. Comparisons are offered against traditional models such as bag of words, n-grams and their TFIDF variants, and deep learning models such as word-based ConvNets and recurrent neural networks.
+#' 
+#' Coming back to our project: As Google has changed it's API, I had to download the dataset manually from the following URL:    
+#' 
+#' Please select file named "amazon_review_polarity_csv.tar.gz" and download it to the project directory.
+#' 
+#' Download Location URL : [Xiang Zhang Google Drive](https://drive.google.com/drive/folders/0Bz8a_Dbh9Qhbfll6bVpmNUtUcFdjYmF2SEpmZUZUcVNiMUw1TWN6RDV3a0JHT3kxLVhVR2M?resourcekey=0-TLwzfR2O-D2aPitmn5o9VQ)
+#' 
+#' 
+#' DESCRIPTION
+#' 
+#' The Amazon reviews polarity dataset is constructed by taking review score 1 and 2 as negative, and 4 and 5 as positive. Samples of score 3 is ignored. In the dataset, class 1 is the negative and class 2 is the positive. Each class has 1,800,000 training samples and 200,000 testing samples.
+#' 
+#' The files train.csv and test.csv contain all the training samples as comma-separated values. There are 3 columns in them, corresponding to label/class index (1 or 2), review title and review text. The review title and text are escaped using double quotes ("), and any internal double quote is escaped by 2 double quotes (""). New lines are escaped by a backslash followed with an "n" character, that is "\textbackslash n".
+#' 
+#' 
+#' \newpage
+#' ### Explore Your Data
+#' Building and training a model is only one part of the workflow. Understanding the characteristics of your data beforehand will enable you to build a better model. This could simply mean obtaining a higher accuracy. It could also mean requiring less data for training, or fewer computational resources.
+#' 
+#' #### Load the Dataset
+#' First up, let’s load the dataset into R.
+#' 
+#' In the dataset, class 1 is the negative and class 2 is the positive review. We will change these to 0 and 1.
+#' 
+#' columns = (0, 1, 2) \# 0 - label/class index, 1 - title/subject, 2 -
+#' text body/review.
+#' 
+#' In this project we will NOT be using the "title" data. We will use only "label" and "text".
+#' Also note that I have more comments in the code file/s than in the pdf document.
+#' 
+## ----untar_dataset, include=TRUE, echo=TRUE, eval=TRUE, collapse = TRUE, comment="", highlight=TRUE, background='#F7F7F7', tidy=TRUE----
+untar("amazon_review_polarity_csv.tar.gz",list=TRUE)  ## check contents
+untar("amazon_review_polarity_csv.tar.gz")
+
+#' 
+#' 
+#' 
+## ----load_csv, include=FALSE, echo=FALSE, eval=TRUE, collapse = TRUE, comment="", highlight=TRUE, background='#F7F7F7', tidy=TRUE----
+train_file_path <- file.path("amazon_review_polarity_csv/train.csv")
+
+test_file_path <- file.path("amazon_review_polarity_csv/test.csv")
+
+# read data, ensure "utf-8" encoding, add column names, exclude rows with missing values(NA)
+amazon_orig_train <- readr::read_csv(
+  train_file_path,
+  # skip = 0,
+  col_names = c("label", "title", "text"),
+  locale = locale(encoding = "UTF-8")) %>% na.omit()
+
+# change labels from (1,2) to (0,1) - easier for binary classification
+amazon_orig_train$label[amazon_orig_train$label==1] <- 0
+amazon_orig_train$label[amazon_orig_train$label==2] <- 1
+
+# removed numbers as they were too many and did not contribute any info
+
+# amazon_orig_train$text <- str_replace_all(amazon_orig_train$text,"[^([[:alnum:]_])]"," ") %>% trimws() %>% str_squish()
+# 
+# amazon_orig_train$title <- str_replace_all(amazon_orig_train$title,"[^([[:alnum:]_])]"," ") %>% trimws() %>% str_squish()
+
+# remove leading/trailing whitespace (trimws)
+# trim whitespace from a string (str_squish)
+# replace non alphabet chars with space
+
+amazon_orig_train$text <- str_replace_all(amazon_orig_train$text,"[^([[:alpha:]_])]"," ") %>% trimws() %>% str_squish()
+
+amazon_orig_train$title <- str_replace_all(amazon_orig_train$title,"[^([[:alpha:]_])]"," ") %>% trimws() %>% str_squish()
+
+# create a validation set for training purposes
+ids_train <- sample.int(nrow(amazon_orig_train), size = 0.8*nrow(amazon_orig_train))
+amazon_train <- amazon_orig_train[ids_train,]
+amazon_val <- amazon_orig_train[-ids_train,]
+
+head(amazon_train)
+
+# save cleaned up data for later use
+write_csv(amazon_train,"amazon_review_polarity_csv/amazon_train.csv", col_names = TRUE)
+write_csv(amazon_val,"amazon_review_polarity_csv/amazon_val.csv", col_names = TRUE)
+
+# -----------------------------------------------
+# read data, ensure "utf-8" encoding, add column names, exclude rows with missing values(NA)
+amazon_orig_test <- readr::read_csv(
+  test_file_path,
+  # skip = 0,
+  col_names = c("label", "title", "text"),
+  locale = locale(encoding = "UTF-8")) %>% na.omit()
+
+# change labels from (1,2) to (0,1) - easier for binary classification
+amazon_orig_test$label[amazon_orig_test$label==1] <- 0
+amazon_orig_test$label[amazon_orig_test$label==2] <- 1
+
+# remove leading/trailing whitespace (trimws)
+# trim whitespace from a string (str_squish)
+# replace non alphabet chars with space
+
+amazon_orig_test$text <- str_replace_all(amazon_orig_test$text,"[^([[:alpha:]_])]"," ") %>% trimws() %>% str_squish()
+
+amazon_orig_test$title <- str_replace_all(amazon_orig_test$title,"[^([[:alpha:]_])]"," ") %>% trimws() %>% str_squish()
+
+# amazon_orig_test$text <- str_replace_all(amazon_orig_test$text,"[^([[:alnum:]_])]"," ") %>% trimws() %>% str_squish()
+# 
+# amazon_orig_test$title <- str_replace_all(amazon_orig_test$title,"[^([[:alnum:]_])]"," ") %>% trimws() %>% str_squish()
+
+head(amazon_orig_test)
+
+# save cleaned up data for later use
+write_csv(amazon_orig_test,"amazon_review_polarity_csv/amazon_test.csv", col_names = TRUE)
+
+rm(amazon_orig_train, amazon_orig_test)
+rm(ids_train, test_file_path, train_file_path)
+
+# free unused R memory
+gc()
+
+#' 
+#' 
+## ----temp, echo=FALSE, eval=TRUE, message=FALSE, include=FALSE---------
+#### To be deleted later
+amazon_train <- readr::read_csv("amazon_review_polarity_csv/amazon_train.csv")
+
+#' 
+#' \newpage
+#' #### Check the Data
+#' After loading the data, it’s good practice to run some checks on it: pick a few samples and manually check if they are consistent with your expectations. For example see Table \ref{tbl:amazon_train}
+#' 
+## ----chk_data_1, eval=TRUE, collapse = TRUE, comment="", highlight=TRUE, background='#F7F7F7', tidy=TRUE----
+glimpse(amazon_train)
+
+#' 
+## ----chk_data_2, echo=FALSE, eval=TRUE, collapse = TRUE, comment="", highlight=TRUE, background='#F7F7F7', tidy=TRUE,  tidy.opts=list(blank = FALSE, width.cutoff = 90)----
+# head(amazon_train)
+kable(amazon_train[1:10,], "latex", escape=FALSE, booktabs=TRUE, linesep="", caption="Amazon Train  data\\label{tbl:amazon_train}") %>%
+    kable_styling(latex_options=c("HOLD_position"), font_size=6)
+  # kable_styling(full_width = F)
+
+#' 
+#' Labels : Negative reviews = 0, Positive reviews = 1
+## ----chk_data_3, eval=TRUE, collapse = TRUE, comment="", highlight=TRUE, background='#F7F7F7', tidy=TRUE----
+unique(amazon_train$label)
+
+#' 
+#' \newpage
+#' #### Collect Key Metrics
+#' 
+#' Once you've verified the data, collect the following
+#' important metrics that can help characterize your text classification
+#' problem:
+#' 
+#' 1.Number of samples: Total number of examples you have in the data.
+#' 
+#' 2.Number of classes: Total number of topics or categories in the data.
+#' 
+#' 3.Number of samples per class: Number of samples per class
+#' (topic/category). In a balanced dataset, all classes will have a similar
+#' number of samples; in an imbalanced dataset, the number of samples in
+#' each class will vary widely.
+#' 
+#' 4.Number of words per sample: Median number of words in one sample.
+#' 
+#' 5.Frequency distribution of words: Distribution showing the frequency
+#' (number of occurrences) of each word in the dataset.
+#' 
+#' 6.Distribution of sample length: Distribution showing the number of words
+#' per sample in the dataset.
+#'   
+#' 
+#' Number of samples
+## ----num_samples, include=TRUE, echo=TRUE, eval=TRUE, collapse = TRUE, comment="", highlight=TRUE, background='#F7F7F7', tidy=TRUE, message=FALSE----
+(num_samples <- nrow(amazon_train))
+
+#' 
+#' 
+#' Number of classes
+## ----num_classes, include=TRUE, echo=TRUE, eval=TRUE, collapse = TRUE, comment="", highlight=TRUE, background='#F7F7F7', tidy=TRUE, message=FALSE----
+(num_classes <- length(unique(amazon_train$label)))
+
+#' 
+#' 
+#' Number of samples per class
+## ----balanced_classes, include=TRUE, echo=TRUE, eval=TRUE, collapse = TRUE, comment="", highlight=TRUE, background='#F7F7F7', tidy=TRUE, message=FALSE----
+# Pretty Balanced classes
+(num_samples_per_class <- amazon_train %>% count(label))
+
+#' 
+#' 
+#' Number of words per sample
+## ----mean_median_num_words_per_sample, echo=6:14, include=TRUE, eval=TRUE, collapse = TRUE, comment="", highlight=TRUE, background='#F7F7F7', tidy=TRUE, message=FALSE----
+# break up the strings in each row by " "
+temp <- strsplit(amazon_train$text, split=" ")
+
+# sapply(temp[c(1:3)], length)
+# count the number of words as the length of the vectors
+amazon_train_text_wordCount <- sapply(temp, length)
+
+(mean_num_words_per_sample <- mean(amazon_train_text_wordCount))
+
+(median_num_words_per_sample <- median(amazon_train_text_wordCount))
+
+#' 
+#' 
+#' \newpage
+#' #### Tokenization
+#' 
+#' To build features for supervised machine learning from natural language, we need some way of representing raw text as numbers so we can perform computation on them. Typically, one of the first steps in this transformation from natural language to feature, or any of kind of text analysis, is tokenization. Knowing what tokenization and tokens are, along with the related concept of an n-gram, is important for almost any natural language processing task.  
+#' 
+#' Tokenization in NLP/Text Classification is essentially splitting a phrase, sentence, paragraph, or an entire text document into smaller units, such as individual words or terms. Each of these smaller units are called tokens.
+#' 
+#' For Frequency distribution of words(nrams) and for Top 25 words see Table \ref{tbl:train_words} and Figure \ref{fig:model_1}
+#' 
+## ----freq_dist_ngrams, echo=FALSE, eval=TRUE, collapse = TRUE, comment="", warning=FALSE, message=FALSE, highlight=TRUE, background='#F7F7F7', tidy=TRUE,  tidy.opts=list(blank = FALSE, width.cutoff = 90)----
+# Frequency distribution of words(ngrams)
+train_words <- amazon_train %>% unnest_tokens(word, text) %>% count(word,sort = TRUE)
+
+total_words <- train_words %>%
+    summarize(total = sum(n))
+
+# Zipf’s law states that the frequency that a word appears is inversely proportional to its rank.
+train_words <- train_words %>%
+    mutate(total_words) %>%
+     mutate(rank = row_number(),
+         `term frequency` = n/total)
+# head(train_words)
+kable(train_words[1:10,], "latex", escape=FALSE, booktabs=TRUE, linesep="", caption="Frequency distribution of words\\label{tbl:train_words}") #%>%
+    # kable_styling(latex_options=c("HOLD_position"), font_size=6)
+
+#' 
+#' 
+## ----plot_freq_dist_ngrams, echo=FALSE, eval=TRUE, comment="", message=FALSE, fig.pos="h!", fig.cap="Frequency distribution of words(nrams) for Top 25 words\\label{fig:model_1}"----
+train_words %>%
+  top_n(25, n) %>%
+  ggplot(aes(reorder(word,n),n)) +
+  geom_col(binwidth = 1, alpha = 0.8) +
+   coord_flip() +
+  labs(y="n - Frequency distribution of words(ngrams)",
+       x="Top 25 words")
+
+#' 
+#' 
+#' \newpage
+#' #### Stopwords
+#' 
+#' Once we have split text into tokens, it often becomes clear that not all words carry the same amount of information, if any information at all, for a predictive modeling task. Common words that carry little (or perhaps no) meaningful information are called stop words. It is common advice and practice to remove stop words for various NLP tasks.  
+#' 
+#' The concept of stop words has a long history with Hans Peter Luhn credited with coining the term in 1960. [Luhn, H. P. 1960. “Key Word-in-Context Index for Technical Literature (kwic Index).” American Documentation 11 (4): 288–295. doi:10.1002/asi.5090110403](https://doi.org/10.1002/asi.5090110403). Examples of these words in English are “a,” “the,” “of,” and “didn’t.” These words are very common and typically don’t add much to the meaning of a text but instead ensure the structure of a sentence is sound.  
+#' 
+#' Historically, one of the main reasons for removing stop words was to decrease the computational time for text mining; it can be regarded as a dimensionality reduction of text data and was commonly used in search engines to give better results [Huston, Samuel, and W. Bruce Croft. 2010. “Evaluating Verbose Query Processing Techniques.” In Proceedings of the 33rd International ACM SIGIR Conference on Research and Development in Information Retrieval, 291–298. SIGIR ’10. New York, NY, USA: ACM. doi:10.1145/1835449.1835499](https://doi.org/10.1145/1835449.1835499).
+#' 
+#' For Frequency distribution of words(ngrams) and for Top 25 words excluding stopwords see Table \ref{tbl:train_words_sw} and Figure \ref{fig:model_2}
+#' 
+#' 
+#' Using Pre-made stopwords
+## ----stopwords_choices, include=TRUE, echo=TRUE, eval=TRUE, collapse = TRUE, comment="", highlight=TRUE, background='#F7F7F7', tidy=TRUE, message=FALSE----
+length(stopwords(source = "smart"))
+length(stopwords(source = "snowball"))
+length(stopwords(source = "stopwords-iso"))
+
+#' 
+#' 
+#' Frequency distribution of words with stopwords removed
+#' 
+#' We will use the "stopwords-iso" Pre-made stopwords along with a few unique to our case
+## ----freq_dist_ngrams_stopwords, echo=1:1, eval=TRUE, collapse = TRUE, comment="", warning=FALSE, message=FALSE, highlight=TRUE, background='#F7F7F7', tidy=TRUE,  tidy.opts=list(blank = FALSE, width.cutoff = 90)----
+mystopwords <- c("s", "t", "m", "ve", "re", "d", "ll")
+
+# Frequency distribution of words(ngrams)
+train_words_sw <- amazon_train %>% unnest_tokens(word, text) %>%
+    anti_join(get_stopwords(source = "stopwords-iso"))%>%
+    filter(!(word %in% mystopwords)) %>%
+    count(word,sort = TRUE)
+
+total_words_sw <- train_words_sw %>%
+    summarize(total = sum(n))
+
+# Zipf’s law states that the frequency that a word appears is inversely proportional to its rank.
+
+train_words_sw <- train_words_sw %>%
+    mutate(total_words_sw) %>%
+     mutate(rank = row_number(),
+         `term frequency` = n/total)
+# head(train_words_sw)
+kable(train_words_sw[1:10,], "latex", escape=FALSE, booktabs=TRUE, linesep="", caption="Frequency distribution of words excluding stopwords\\label{tbl:train_words_sw}") #%>%
+    # kable_styling(latex_options=c("HOLD_position"), font_size=6)
+
+#' 
+#' 
+#' 
+## ----plot_freq_dist_ngrams_stopwords, echo=FALSE, eval=TRUE, comment="", warning=FALSE, message=FALSE, fig.pos="h!", fig.cap="Frequency distribution of words(nrams) for Top 25 words excluding stopwords\\label{fig:model_2}"----
+train_words_sw %>%
+  top_n(25, n) %>%
+  ggplot(aes(reorder(word,n),n)) +
+  geom_col(binwidth = 1, alpha = 0.8) +
+   coord_flip() +
+  labs(y="n - Frequency distribution of words(ngrams) excluding stopwords",
+       x="Top 25 words")
+
+#' 
+#' 
+#' \newpage
+#' Here are Google's recommendations after decades of research:
+#' 
+#' Algorithm for Data Preparation and Model Building
+#' 
+#' 1. Calculate the number of samples/number of words per sample ratio.
+#' 2. If this ratio is less than 1500, tokenize the text as n-grams and use a
+#' simple multi-layer perceptron (MLP) model to classify them (left branch in the
+#' flowchart below):
+#'   a. Split the samples into word n-grams; convert the n-grams into vectors.
+#'   b. Score the importance of the vectors and then select the top 20K using the scores.
+#'   c. Build an MLP model.
+#' 3. If the ratio is greater than 1500, tokenize the text as sequences and use a
+#'    [sepCNN](https://developers.google.com/machine-learning/glossary?utm_source=DevSite&utm_campaign=Text-Class-Guide&utm_medium=referral&utm_content=glossary&utm_term=sepCNN#depthwise-separable-convolutional-neural-network-sepcnn) model to classify them (right branch in the flowchart below):
+#'   a. Split the samples into words; select the top 20K words based on their frequency.
+#'   b. Convert the samples into word sequence vectors.
+#'   c. If the original number of samples/number of words per sample ratio is less
+#'      than 15K, using a fine-tuned pre-trained embedding with the sepCNN
+#'      model will likely provide the best results.
+#' 4. Measure the model performance with different hyperparameter values to find
+#'    the best model configuration for the dataset.
+#' 
+## ----S_W_ratio, include=TRUE, echo=TRUE, eval=TRUE, collapse = TRUE, comment="", highlight=TRUE, background='#F7F7F7', tidy=TRUE, warning=FALSE, message=FALSE----
+# 3. If the ratio is greater than 1500, tokenize the text as
+# sequences and use a sepCNN model
+#    see above
+
+(S_W_ratio <- num_samples / median_num_words_per_sample)
+
+#' 
+#' 
+#' \newpage
+#' ## Preprocessing for deep learning continued with more exploration
+#' 
+#' For "Number of words per review text" see Figure \ref{fig:model_3}  
+#' 
+#' For "Number of words per review title" see Figure \ref{fig:model_4}  
+#' 
+#' For "Number of words per review text by label" see Figure \ref{fig:model_5}  
+#' 
+#' For "Number of words per review title by label" see Figure \ref{fig:model_6}  
+#' 
+#' For "Sample/Subset of our training dataset" see Table \ref{tbl:amazon_subset_train}  
+#' 
+#' 
+## ----preproc_1, echo=FALSE, eval=TRUE, comment="", warning=FALSE, message=FALSE, fig.pos="h!", fig.cap="Number of words per review text\\label{fig:model_3}"----
+amazon_train %>%
+  mutate(n_words = tokenizers::count_words(text)) %>%
+  ggplot(aes(n_words)) +
+  geom_bar() +
+  labs(x = "Number of words per review text",
+       y = "Number of review texts")
+
+#' 
+## ----preproc_2, echo=FALSE, eval=TRUE, comment="", warning=FALSE, message=FALSE, fig.pos="h!", fig.cap="Number of words per review title\\label{fig:model_4}"----
+amazon_train %>%
+  mutate(n_words = tokenizers::count_words(title)) %>%
+  ggplot(aes(n_words)) +
+  geom_bar() +
+  labs(x = "Number of words per review title",
+       y = "Number of review titles")
+
+#' 
+## ----preproc_3, echo=FALSE, eval=TRUE, comment="", warning=FALSE, message=FALSE, fig.pos="h!", fig.cap="Number of words per review text by label\\label{fig:model_5}"----
+amazon_train %>%
+  group_by(label) %>%
+  mutate(n_words = tokenizers::count_words(text)) %>%
+  ggplot(aes(n_words)) +
+  # ggplot(aes(nchar(text))) +
+  geom_histogram(binwidth = 1, alpha = 0.8) +
+  facet_wrap(~ label, nrow = 1) +
+  labs(x = "Number of words per review text by label",
+       y = "Number of reviews")
+
+#' 
+## ----preproc_4, echo=FALSE, eval=TRUE, comment="", warning=FALSE, message=FALSE, fig.pos="h!", fig.cap="Number of words per review title by label\\label{fig:model_6}"----
+amazon_train %>%
+  group_by(label) %>%
+  mutate(n_words = tokenizers::count_words(title)) %>%
+  ggplot(aes(n_words)) +
+  # ggplot(aes(nchar(title))) +
+  geom_histogram(binwidth = 1, alpha = 0.8) +
+  facet_wrap(~ label, nrow = 1) +
+  labs(x = "Number of words per review title by label",
+       y = "Number of reviews")
+
+#' 
+#' 
+#' Let's trim down our training dataset due to computing resource limitations.
+## ----subset_train, echo=1:3, eval=TRUE, collapse = TRUE, comment="", warning=FALSE, message=FALSE, highlight=TRUE, background='#F7F7F7', tidy=TRUE,  tidy.opts=list(blank = FALSE, width.cutoff = 90)----
+amazon_subset_train <- amazon_train %>% select(-title) %>%
+  mutate(n_words = tokenizers::count_words(text)) %>%
+  filter((n_words < 35) & (n_words > 5)) %>% select(-n_words) 
+
+dim(amazon_subset_train)
+# head(amazon_subset_train)
+kable(amazon_subset_train[1:10,], "latex", escape=FALSE, booktabs=TRUE, linesep="", caption="Sample/Subset of our training dataset\\label{tbl:amazon_subset_train}") #%>%
+    # kable_styling(latex_options=c("HOLD_position"), font_size=6)
+
+#' 
+#' 
+#' 
+#' \newpage
+#' # Model Baseline linear classifier
+#' 
+#' This model serves the purpose of comparison with the deep learning techniques we will implement later on, and also as a succinct summary of a basic supervised machine learning analysis for text.
+#' 
+#' This linear baseline is a regularized linear model trained on the same data set, using tf-idf weights and 5000 tokens.
+#' 
+#' ## Modify label column to factor
+#' 
+## ----label_to_factor, echo=TRUE, eval=TRUE, collapse = TRUE, comment="", warning=FALSE, message=FALSE, highlight=TRUE, background='#F7F7F7', tidy=TRUE----
+# Free computer resources
+rm(amazon_train, amazon_val, amazon_train_text_wordCount,num_samples_per_class, temp, total_words, train_words)
+rm(mean_num_words_per_sample, median_num_words_per_sample, num_classes, num_samples, S_W_ratio)
+gc()
+
+# save(amazon_subset_train)
+write_csv(amazon_subset_train,"amazon_review_polarity_csv/amazon_subset_train.csv", col_names = TRUE)
+
+amazon_train <- amazon_subset_train
+
+amazon_train <- amazon_train %>%
+  mutate(label = as.factor(label))
+
+# amazon_val <- amazon_train %>%
+#   mutate(label = as.factor(label))
+
+#' 
+#' 
+#' ## Split into test/train and create resampling folds
+#' 
+## ----create_folds, echo=TRUE, eval=TRUE, collapse = TRUE, comment="", highlight=TRUE, background='#F7F7F7', tidy=TRUE, tidy.opts=list(blank = FALSE, width.cutoff = 60)----
+set.seed(1234)
+
+amazon_split <- amazon_train %>% initial_split()
+
+amazon_train <- training(amazon_split)
+amazon_test <- testing(amazon_split)
+
+set.seed(123)
+amazon_folds <- vfold_cv(amazon_train)
+# amazon_folds
+
+#' 
+#' 
+#' ## Recipe for data preprocessing
+#' 
+#' "step_tfidf" creates a specification of a recipe step that will convert a tokenlist into multiple variables containing the [term frequency-inverse document frequency](https://www.tidytextmining.com/tfidf.html) of tokens.(check it out in the console by typing ?textrecipes::step_tfidf)  
+#' 
+## ----rec_blm, echo=TRUE, eval=TRUE, collapse = TRUE, comment="", warning=FALSE, message=FALSE, highlight=TRUE, background='#F7F7F7', tidy=TRUE----
+# library(textrecipes)
+
+amazon_rec <- recipe(label ~ text, data = amazon_train) %>%
+  step_tokenize(text) %>%
+  step_tokenfilter(text, max_tokens = 5e3) %>%
+  step_tfidf(text)
+
+amazon_rec
+
+#' 
+#' ## Lasso regularized classification model and tuning
+#' 
+#' Linear models are not considered cutting edge in NLP research, but are a workhorse in real-world practice. Here we will use a lasso regularized model [Tibshirani, Robert. 1996. "Regression Shrinkage and Selection via the Lasso." Journal of the Royal Statistical Society. Series B (Methodological) 58 (1). Royal Statistical Society, Wiley: 267–288.]( http://www.jstor.org/stable/2346178).
+#' 
+#' Let’s create a specification of lasso regularized model.
+#' 
+#' "penalty" is a model hyperparameter and we cannot learn its best value during model training, but we can estimate the best value by training many models on resampled data sets and exploring how well all these models perform. Let’s build a new model specification for model tuning.
+#' 
+## ----lasso_spec, eval=TRUE, collapse = TRUE, comment="", warning=FALSE, message=FALSE, highlight=TRUE, background='#F7F7F7', tidy=TRUE----
+lasso_spec <- logistic_reg(penalty = tune(), mixture = 1) %>%
+  set_mode("classification") %>%
+  set_engine("glmnet")
+
+lasso_spec
+
+#' 
+#' ## A model workflow
+#' 
+#' We need a few more components before we can tune our workflow. Let's use
+#' a sparse data encoding.
+#' 
+#' We can change how our text data is represented to take advantage of its sparsity, especially for models like lasso regularized models. The regularized regression model we trained above used set_engine("glmnet"); this computational engine can be more efficient when text data is transformed to a sparse matrix, rather than a dense data frame or tibble representation.
+#' 
+#' To keep our text data sparse throughout modeling and use the sparse capabilities of set_engine("glmnet"), we need to explicitly set a non-default preprocessing blueprint, using the package hardhat [Vaughan, Davis, and Max Kuhn. 2020. hardhat: Construct Modeling Packages.](https://CRAN.R-project.org/package=hardhat).
+#' 
+## ----rec_blueprint, eval=TRUE, collapse = TRUE, comment="", warning=FALSE, message=FALSE, highlight=TRUE, background='#F7F7F7', tidy=TRUE----
+library(hardhat)
+sparse_bp <- default_recipe_blueprint(composition = "dgCMatrix")
+
+#' 
+#' Let's create a grid of possible regularization penalties to try, using a convenience function for penalty() called grid_regular() from the dials package.
+#' 
+## ----penalty_grid, eval=TRUE, collapse = TRUE, comment="", warning=FALSE, message=FALSE, highlight=TRUE, background='#F7F7F7', tidy=TRUE----
+lambda_grid <- grid_regular(penalty(range = c(-5, 0)), levels = 20)
+lambda_grid
+
+#' 
+#' Now these can be combined in a tuneable workflow()
+#' 
+## ----amazon_wf_1, eval=TRUE, collapse = TRUE, comment="", warning=FALSE, message=FALSE, highlight=TRUE, background='#F7F7F7', tidy=TRUE----
+amazon_wf <- workflow() %>%
+  add_recipe(amazon_rec, blueprint = sparse_bp) %>%
+  add_model(lasso_spec)
+
+amazon_wf
+
+#' 
+#' 
+#' \newpage
+#' ## Tune the workflow
+#' 
+#' Let’s use tune_grid() to fit a model at each of the values for the regularization penalty in our regular grid and every resample in amazon_folds.
+#' 
+## ----tune_grid_1, eval=TRUE, collapse = TRUE, comment="", warning=FALSE, message=FALSE, highlight=TRUE, background='#F7F7F7', tidy=TRUE----
+set.seed(2020)
+lasso_rs <- tune_grid(
+  amazon_wf,
+  amazon_folds,
+  grid = lambda_grid,
+  control = control_resamples(save_pred = TRUE)
+)
+
+# lasso_rs
+
+#' 
+#' 
+#' We now have a set of metrics for each value of the regularization penalty.  
+#' 
+#' We can extract the relevant information using collect_metrics() and collect_predictions()
+#' 
+#' See Table \ref{tbl:lasso_metrics} for Lasso Metrics
+#' 
+## ----lasso_metrics, eval=TRUE, collapse = TRUE, comment="", warning=FALSE, message=FALSE, highlight=TRUE, background='#F7F7F7', tidy=TRUE----
+m_lm <- collect_metrics(lasso_rs)
+kable(m_lm, format = "simple", caption="Lasso Metrics\\label{tbl:lasso_metrics}")
+
+#' 
+#' 
+#' What are the best models?  
+#' 
+#' See Table \ref{tbl:best_lasso_roc} for Best Lasso ROC.
+#' 
+## ----best_lasso_roc, eval=TRUE, collapse = TRUE, comment="", warning=FALSE, message=FALSE, highlight=TRUE, background='#F7F7F7', tidy=TRUE----
+m_blr <- show_best(lasso_rs, "roc_auc")
+kable(m_blr, format = "simple", caption="Best Lasso ROC\\label{tbl:best_lasso_roc}")
+
+#' 
+#' 
+#' See Table \ref{tbl:best_lasso_acc} for Best Lasso Accuracy.
+#' 
+## ----best_lasso_acc, eval=TRUE, collapse = TRUE, comment="", warning=FALSE, message=FALSE, highlight=TRUE, background='#F7F7F7', tidy=TRUE----
+m_bla <- show_best(lasso_rs, "accuracy")
+kable(m_bla, format = "simple", caption="Best Lasso Accuracy\\label{tbl:best_lasso_acc}")
+
+#' 
+#' 
+#' Let’s visualize these metrics; accuracy and ROC AUC, in Figure \ref{fig:model_7} to see what the best model is.
+#' 
+## ----plot_lasso, echo=FALSE, eval=TRUE, comment="", warning=FALSE, message=FALSE, fig.pos="h!", fig.cap="Lasso model performance across regularization penalties\\label{fig:model_7}"----
+autoplot(lasso_rs) +
+  labs(
+    title = "Lasso model performance across regularization penalties",
+    subtitle = "Performance metrics can be used to identify the best penalty"
+  )
+
+#' 
+#' 
+#' See Table \ref{tbl:lasso_predictions} for Lasso Predictions
+#' 
+## ----lasso_predictions, eval=TRUE, collapse = TRUE, comment="", warning=FALSE, message=FALSE, highlight=TRUE, background='#F7F7F7', tidy=TRUE----
+m_lp <- collect_predictions(lasso_rs)
+kable(head(m_lp), format = "simple", caption="Lasso Predictions\\label{tbl:lasso_predictions}")
+
+#' 
+#' 
+#' Figure \ref{fig:model_8} shows the ROC curve, a visualization of how well a classification model can distinguish between classes
+#' 
+## ----m_lp_roc_0, echo=FALSE, eval=TRUE, comment="", warning=FALSE, message=FALSE, fig.pos="h!", fig.cap="Lasso model ROC Label 0\\label{fig:model_8}"----
+m_lp %>%
+  # mutate(.pred_class=as.numeric(levels(.pred_class)[.pred_class])) %>%
+  group_by(id) %>%
+  roc_curve(truth = label, .pred_0) %>%
+  autoplot() +
+  labs(
+    color = NULL,
+    title = "ROC curve for Lasso model Label 0",
+    subtitle = "Each resample fold is shown in a different color"
+  )
+
+#' 
+#' Figure \ref{fig:model_9} shows the ROC curve, a visualization of how well a classification model can distinguish between classes
+#' 
+## ----m_lp_roc_1, echo=FALSE, eval=TRUE, comment="", warning=FALSE, message=FALSE, fig.pos="h!", fig.cap="Lasso model ROC Label 1\\label{fig:model_9}"----
+m_lp %>%
+  group_by(id) %>%
+  roc_curve(truth = label, .pred_1) %>%
+  autoplot() +
+  labs(
+    color = NULL,
+    title = "ROC curve for Lasso model Label 1",
+    subtitle = "Each resample fold is shown in a different color"
+  )
+
+#' 
+## ----blm_best, echo=FALSE----------------------------------------------
+# Best ROC_AUC 
+blm_best_roc <- max(m_blr$mean)  
+
+# Best Accuracy
+blm_best_acc <- max(m_bla$mean) 
+
+#' 
+#' 
+#' \newpage
+#' ## Results  
+#' 
+#' We saw that regularized linear models, such as lasso, often work well for text data sets.  
+#' 
+#' The default performance parameters for binary classification are accuracy and ROC AUC (area under the receiver operator characteristic curve). Here, the best accuracy is:  
+#' 
+#' Best ROC_AUC is `r blm_best_roc`  
+#' Best Accuracy is `r blm_best_acc`  
+#' 
+#' As we go along, we will be comparing different approaches. Let's start by creating a results table with this BLM to get Table \ref{tbl:blm_results_table}:
+#' 
+## ----blm_results_table, echo=FALSE, eval=TRUE--------------------------
+results_table <- tibble(Index = "1", Method = "BLM", Accuracy = blm_best_acc, Loss = NA)
+
+kable(results_table, "simple",caption="Baseline Linear Model Results\\label{tbl:blm_results_table}")
+# %>%
+#     kable_styling(latex_options=c("HOLD_position"), font_size=7)
+
+#' 
+#' 
+#' Accuracy and ROC AUC are performance metrics used for classification models. For both, values closer to 1 are better.
+#' 
+#' Accuracy is the proportion of the data that are predicted correctly. Be aware that accuracy can be misleading in some situations, such as for imbalanced data sets.
+#' 
+#' ROC AUC measures how well a classifier performs at different thresholds. The ROC curve plots the true positive rate against the false positive rate, and AUC closer to 1 indicates a better-performing model while AUC closer to 0.5 indicates a model that does no better than random guessing.
+#' 
+#' Figure \ref{fig:model_8} and Figure \ref{fig:model_9} show the ROC curves, a visualization of how well our classification model can distinguish between classes.
+#' 
+#' The area under each of these curves is the roc_auc metric we have computed. If the curve was close to the diagonal line, then the model’s predictions would be no better than random guessing.
+#' 
+#' One metric alone cannot give you a complete picture of how well your classification model is performing. The confusion matrix is a good starting point to get an overview of your model performance, as it includes rich information.
+#' 
+#' Another way to evaluate our model is to evaluate the confusion matrix. A confusion matrix tabulates a model’s false positives and false negatives for each class. The function conf_mat_resampled() computes a separate confusion matrix for each resample and takes the average of the cell counts. This allows us to visualize an overall confusion matrix rather than needing to examine each resample individually.  
+#' 
+#' 
+#' 
+#' # Preprocessing for rest of the models
+#' 
+#' Preprocessing for deep learning models is different than preprocessing for most other text models. These neural networks model sequences, so we have to choose the length of sequences we would like to include. Sequences that are longer than this length are truncated (information is thrown away) and those that are shorter than this length are padded with zeroes (an empty, non-informative value) to get to the chosen sequence length. This sequence length is a hyperparameter of the model and we need to select this value such that we don’t overshoot and introduce a lot of padded zeroes which would make the model hard to train, or undershoot and cut off too much informative text.
+#' 
+#' We will use the recipes and textrecipes packages for data preprocessing and feature engineering.
+#' 
+#' The formula used to specify this recipe ~ text does not have an outcome, because we are using recipes and textrecipes functions on their own, outside of the rest of the tidymodels framework; we don’t need to know about the outcome here. This preprocessing recipe tokenizes our text and filters to keep only the top 20,000 words and then it transforms the tokenized text into a numeric format appropriate for modeling, using step_sequence_onehot().
+#' 
+## ----rec_nn_1, echo=TRUE, eval=TRUE, collapse = TRUE, comment="", warning=FALSE, message=FALSE, highlight=TRUE, background='#F7F7F7', tidy=TRUE----
+rm(amazon_folds, amazon_rec, amazon_split, amazon_test, amazon_train, amazon_wf, lambda_grid, lasso_rs, lasso_spec, sparse_bp)
+
+gc()
+
+amazon_subset_train <- readr::read_csv("amazon_review_polarity_csv/amazon_subset_train.csv")
+
+amazon_train <- amazon_subset_train
+
+max_words <- 2e4
+max_length <- 30
+mystopwords <- c("s", "t", "m", "ve", "re", "d", "ll")
+
+amazon_rec <- recipe(~ text, data = amazon_subset_train) %>%
+  step_text_normalization(text) %>%
+  step_tokenize(text) %>%
+  step_stopwords(text, 
+                 stopword_source = "stopwords-iso",
+                 custom_stopword_source = mystopwords) %>%
+  step_tokenfilter(text, max_tokens = max_words) %>%
+  step_sequence_onehot(text, sequence_length = max_length)
+
+amazon_rec
+
+#' 
+#' 
+#' The prep() function will compute or estimate statistics from the training set; the output of prep() is a prepped recipe.
+#' 
+#' When we bake() a prepped recipe, we apply the preprocessing to the data set. We can get out the training set that we started with by specifying new_data = NULL or apply it to another set via new_data = my_other_data_set. The output of bake() is a data set like a tibble or a matrix, depending on the composition argument.
+#' 
+#' Let’s now prepare and apply our feature engineering recipe amazon_rec so we can use it in our deep learning model.
+#' 
+## ----rec_nn_1_prep_bake, echo=TRUE, eval=TRUE, collapse = TRUE, comment="", warning=FALSE, message=FALSE, highlight=TRUE, background='#F7F7F7', tidy=TRUE----
+amazon_prep <-  prep(amazon_rec)
+
+amazon_subset_train <- bake(amazon_prep, new_data = NULL, composition = "matrix")
+dim(amazon_subset_train)
+
+#' 
+#' The prep() function will compute or estimate statistics from the training set; the output of prep() is a prepped recipe.
+#' The prepped recipe can be tidied using tidy() to extract the vocabulary, represented in the vocabulary and token columns.
+#' 
+## ----tidied_prepd_rec, echo=TRUE, eval=TRUE, collapse = TRUE, comment="", warning=FALSE, message=FALSE, highlight=TRUE, background='#F7F7F7', tidy=TRUE----
+amazon_prep %>% tidy(5) %>% head(10)
+
+#' 
+#' 
+#' 
+#' \newpage
+#' # Model DNN
+#' 
+#' A densely connected neural network is one of the simplest configurations for a deep learning model and is typically not a model that will achieve the highest performance on text data, but it is a good place to start to understand the process of building and evaluating deep learning models for text.  
+#' 
+#' In a densely connected neural network, layers are fully connected (dense) by the neurons in a network layer. Each neuron in a layer receives an input from all the neurons present in the previous layer - thus, they’re densely connected.  
+#' 
+#' The input comes in to the network all at once and is densely (in this case, fully) connected to the first hidden layer. A layer is “hidden” in the sense that it doesn’t connect to the outside world; the input and output layers take care of this. The neurons in any given layer are only connected to the next layer. The numbers of layers and nodes within each layer are variable and are hyperparameters of the model selected by us.
+#' 
+#' ## A Simple flattened dense neural network
+#' 
+#' Our first deep learning model embeds the Amazon Reviews in sequences of vectors, flattens them, and then trains a dense network layer to predict whether the Review was positive(1) or not(0).
+#' 
+#' 1. We initiate the Keras model as a linear stack of layers with keras_model_sequential().  
+#' 
+#' 2. Our first layer - layer_embedding() turns each observation into an (embedding_dim * sequence_length) = 12 * 30  
+#' 
+#' 3. In total, we will create a (number_of_observations * embedding_dim * sequence_length) data cube.  
+#' 
+#' 4. The next layer_flatten() layer takes the matrix for each observation and flattens them down into one dimension. This will create a (30 * 12) = 360 long vector for each observation.  
+#' 
+#' 5. layer_layer_normalization() - Normalize the activations of the previous layer for each given example in a batch independently.  
+#' 
+#' 6. Lastly, we have 2 densely connected layers. The last layer has a sigmoid activation function to give us an output between 0 and 1, since we want to model a probability for a binary classification problem.
+#' 
+## ----dense_model_1, echo=TRUE, eval=TRUE, collapse = TRUE, comment="", warning=FALSE, message=FALSE, highlight=TRUE, background='#F7F7F7', tidy=TRUE----
+# library(keras)
+# use_python(python = "/c/Users/bijoor/.conda/envs/tensorflow-python/python.exe", required = TRUE)
+# use_condaenv(condaenv = "tensorflow-python", required = TRUE)
+
+dense_model <- keras_model_sequential() %>%
+  layer_embedding(input_dim = max_words + 1,
+                  output_dim = 12,
+                  input_length = max_length) %>%
+  layer_flatten() %>%
+  layer_layer_normalization() %>%
+  # layer_dropout(0.1) %>%
+  layer_dense(units = 64) %>%
+  # layer_activation_leaky_relu() %>%
+  layer_activation_relu() %>%
+  layer_dense(units = 1, activation = "sigmoid")
+
+dense_model
+
+#' 
+#' 
+#' Before we can fit this model to the data it requires an optimizer and a loss function to be able to compile.
+#' 
+#' When the neural network finishes passing a batch of data through the network, it needs a way to use the difference between the predicted values and true values to update the network’s weights. The algorithm that determines those weights is known as the optimization algorithm. Many optimizers are available within Keras.
+#' 
+#' We will choose one of the following based on our previous experimentation.  
+#' 
+#' optimizer_adam() - Adam - A Method for Stochastic Optimization  
+#' 
+#' optimizer_sgd() - Stochastic gradient descent optimizer  
+#' 
+#' We can also use various options during training using the compile() function, such as optimizer, loss and metrics.
+#' 
+#' 
+## ----dense_model_1_compile, echo=TRUE, eval=TRUE, collapse = TRUE, comment="", warning=FALSE, message=FALSE, highlight=TRUE, background='#F7F7F7', tidy=TRUE----
+# opt <- optimizer_adam(lr = 0.0001, decay = 1e-6)
+# opt <- optimizer_sgd(lr = 0.001, decay = 1e-6)
+opt <- optimizer_sgd()
+dense_model %>% compile(
+  optimizer = opt,
+  loss = "binary_crossentropy",
+  metrics = c("accuracy")
+)
+
+#' 
+#' 
+#' Finally, we can fit this model.  
+#' 
+#' Here we specify the Keras defaults for creating a validation split and tracking metrics with an internal validation split of 20%.
+#' 
+## ----dense_model_1_fit_split, echo=TRUE, eval=TRUE, collapse = TRUE, comment="", warning=FALSE, message=FALSE, highlight=TRUE, background='#F7F7F7', tidy=TRUE----
+dense_history <- dense_model %>%
+  fit(
+    x = amazon_subset_train,
+    y = amazon_train$label,
+    batch_size = 1024,
+    epochs = 50,
+    initial_epoch = 0,
+    validation_split = 0.20,
+    verbose = 2
+  )
+
+dense_history
+
+#' 
+#' 
+#' "DNN Model 1 Fit History using validation_split" Figure \ref{fig:model_10}
+#' 
+## ----dense_model_1_split_hist, echo=FALSE, eval=TRUE, comment="", warning=FALSE, message=FALSE, fig.pos="h!", fig.cap="DNN Model 1 Fit History using validation_split\\label{fig:model_10}"----
+
+plot(dense_history)
+
+#' 
+#' \newpage
+#' ## Evaluation
+#' 
+#' Instead of using Keras defaults, we can use tidymodels functions to be more specific about these model characteristics. Instead of using the validation_split argument to fit(), we can create our own validation set using tidymodels and use validation_data argument for fit(). We create our validation split from the training set.
+#' 
+## ----dense_model_2_val_split, echo=TRUE, eval=TRUE, collapse = TRUE, comment="", warning=FALSE, message=FALSE, highlight=TRUE, background='#F7F7F7', tidy=TRUE----
+set.seed(234)
+amazon_val_eval <- validation_split(amazon_train, strata = label)
+# amazon_val_eval << I am getting a pandoc stack error printing this
+
+#' 
+#' 
+#' The split object contains the information necessary to extract the data we will use for training/analysis and the data we will use for validation/assessment. We can extract these data sets in their raw, unprocessed form from the split using the helper functions analysis() and assessment(). Then, we can apply our prepped preprocessing recipe amazon_prep to both to transform this data to the appropriate format for our neural network architecture.
+#' 
+## ----dense_model_2_val_ana, echo=TRUE, eval=TRUE, collapse = TRUE, comment="", warning=FALSE, message=FALSE, highlight=TRUE, background='#F7F7F7', tidy=TRUE----
+amazon_analysis <- bake(amazon_prep, new_data = analysis(amazon_val_eval$splits[[1]]),
+                        composition = "matrix")
+dim(amazon_analysis)
+
+#' 
+## ----dense_model_2_val_ass, echo=TRUE, eval=TRUE, collapse = TRUE, comment="", warning=FALSE, message=FALSE, highlight=TRUE, background='#F7F7F7', tidy=TRUE----
+amazon_assess <- bake(amazon_prep, new_data = assessment(amazon_val_eval$splits[[1]]),
+                      composition = "matrix")
+dim(amazon_assess)
+
+#' 
+#' 
+#' Here we get outcome variables for both sets.
+#' 
+## ----dense_model_2_val_lab, echo=TRUE, eval=TRUE, collapse = TRUE, comment="", warning=FALSE, message=FALSE, highlight=TRUE, background='#F7F7F7', tidy=TRUE----
+label_analysis <- analysis(amazon_val_eval$splits[[1]]) %>% pull(label)
+label_assess <- assessment(amazon_val_eval$splits[[1]]) %>% pull(label)
+
+#' 
+#' 
+#' Let's setup a new DNN model 2.
+#' 
+#' Here we use layer_dropout() - Dropout consists in randomly setting a fraction rate of input units to 0 at each update during training time, which helps prevent overfitting.
+#' 
+## ----dense_model_2, echo=TRUE, eval=TRUE, collapse = TRUE, comment="", warning=FALSE, message=FALSE, highlight=TRUE, background='#F7F7F7', tidy=TRUE----
+dense_model <- keras_model_sequential() %>%
+  layer_embedding(input_dim = max_words + 1,
+                  output_dim = 12,
+                  input_length = max_length) %>%
+  layer_flatten() %>%
+  layer_layer_normalization() %>%
+  layer_dropout(0.5) %>%
+  layer_dense(units = 64) %>%
+  layer_activation_relu() %>%
+  layer_dropout(0.5) %>%
+  layer_dense(units = 128) %>%
+  layer_activation_relu() %>%
+  layer_dense(units = 128) %>%
+  layer_activation_relu() %>%
+  layer_dense(units = 1, activation = "sigmoid")
+
+opt <- optimizer_adam(lr = 0.0001, decay = 1e-6)
+# opt <- optimizer_sgd(lr = 0.001, decay = 1e-6)
+# opt <- optimizer_sgd()
+dense_model %>% compile(
+  optimizer = opt,
+  loss = "binary_crossentropy",
+  metrics = c("accuracy")
+)
+
+#' 
+#' 
+#' We now fit this model to validation_data - amazon_assess and label_assess instead of the Keras default validation_split.
+#' 
+## ----dense_model_2_fit_val_d, echo=TRUE, eval=TRUE, collapse = TRUE, comment="", warning=FALSE, message=FALSE, highlight=TRUE, background='#F7F7F7', tidy=TRUE----
+val_history <- dense_model %>%
+  fit(
+    x = amazon_analysis,
+    y = label_analysis,
+    batch_size = 2048,
+    epochs = 20,
+    validation_data = list(amazon_assess, label_assess),
+    verbose = 2
+  )
+
+val_history
+
+#' 
+#' 
+#' "DNN Model 2 Fit History using validation_data" Figure \ref{fig:model_11}  
+#' 
+## ----dense_model_2_fit_val_d_hist, echo=FALSE, eval=TRUE, comment="", warning=FALSE, message=FALSE, fig.pos="h!", fig.cap="DNN Model 2 Fit History using validation_data\\label{fig:model_11}"----
+plot(val_history)
+
+#' 
+#' 
+#' 
+#' Using our own validation set also allows us to flexibly measure
+#' performance using tidymodels functions.
+#' 
+#' The following function keras_predict() creates prediction results using the Keras model and preprocessed/baked data from using tidymodels, using a 50% probability threshold and works for our binary problem.
+#' 
+## ----keras_predict_fn, echo=TRUE, eval=TRUE, collapse = TRUE, comment="", warning=FALSE, message=FALSE, highlight=TRUE, background='#F7F7F7', tidy=TRUE----
+keras_predict <- function(model, baked_data, response) {
+  predictions <- predict(model, baked_data)[, 1]
+  tibble(
+    .pred_1 = predictions,
+    .pred_class = if_else(.pred_1 < 0.5, 0, 1),
+    label = response) %>% 
+    mutate(across(c(label, .pred_class), 
+                  ~ factor(.x, levels = c(1, 0))))
+}
+
+#' 
+#' 
+#' See Table \ref{tbl:val_res} for "DNN Model 2 Predictions using validation_data"  
+#' 
+## ----val_res, echo=TRUE, eval=TRUE, collapse = TRUE, comment="", warning=FALSE, message=FALSE, highlight=TRUE, background='#F7F7F7', tidy=TRUE----
+val_res <- keras_predict(dense_model, amazon_assess, label_assess)
+# head(val_res)
+kable(head(val_res), format="simple", caption="DNN Model 2 Predictions using validation data\\label{tbl:val_res}")
+
+#' 
+#' 
+#' 
+#' See Table \ref{tbl:val_res_metrics} for "DNN Model 2 Metrics using Validation data"
+#' 
+## ----val_res_metrics, echo=TRUE, eval=TRUE, collapse = TRUE, comment="", warning=FALSE, message=FALSE, highlight=TRUE, background='#F7F7F7', tidy=TRUE----
+m1 <- metrics(val_res, label, .pred_class)
+kable(m1, format = "simple", caption="DNN Model 2 Metrics using Validation data\\label{tbl:val_res_metrics}")
+
+#' 
+#' 
+#' "DNN Model 2 Confusion Matrix using Validation data" Figure \ref{fig:model_12}  
+#' 
+## ----val_res_conf_mat, echo=FALSE, eval=TRUE, comment="", warning=FALSE, message=FALSE, fig.pos="h!", fig.cap="DNN Model 2 Confusion Matrix using Validation data\\label{fig:model_12}"----
+val_res %>%
+  conf_mat(label, .pred_class) %>%
+  autoplot(type = "heatmap")
+
+#' 
+#' 
+#' "DNN Model 2 ROC curve using Validation data" Figure \ref{fig:model_13}   
+#' 
+## ----val_res_roc, echo=FALSE, eval=TRUE, comment="", warning=FALSE, message=FALSE, fig.pos="h!", fig.cap="DNN Model 2 ROC curve using Validation data\\label{fig:model_13}"----
+val_res %>%
+  roc_curve(truth = label, .pred_1) %>%
+  autoplot() +
+  labs(
+    title = "Receiver operator curve for Amazon Reviews"
+  )
+
+#' 
+## ----dnn_best, echo=FALSE----------------------------------------------
+# Best DNN accuracy
+dnn_best_acc <- max(val_history$metrics$val_accuracy) 
+
+# Lowest DNN Loss
+dnn_lowest_loss <- min(val_history$metrics$val_loss)
+
+#' 
+#' \newpage
+#' ## Results  
+#' 
+#' DNN model results Table \ref{tbl:dnn_results_table}:
+#' 
+## ---- dnn_results_table, echo=FALSE, eval=TRUE-------------------------
+results_table <- bind_rows(results_table,
+                           tibble(Index = "2",
+                                  Method = "DNN",
+                                  Accuracy = dnn_best_acc,
+                                  Loss = dnn_lowest_loss))
+
+kable(results_table, "simple",caption="DNN Model Results\\label{tbl:dnn_results_table}")
+# %>%
+#     kable_styling(latex_options=c("HOLD_position"), font_size=7)
+
+#' 
+#' 
+#' \newpage
+#' # Model CNN
+#' 
+#' A CNN is a neural network in which at least one layer is a convolutional layer. A typical convolutional neural network consists of some combination of the following layers:
+#' 
+#' 1.Convolutional layers - A layer of a deep neural network in which a convolutional filter passes along an input matrix.  
+#' A convolutional operation involves a convolutional filter which is a matrix having the same rank as the input matrix, but a smaller shape and a slice of an input matrix. For example, given a 28x28 input matrix, the filter could be any 2D matrix smaller than 28x28.
+#' 
+#' For example, in photographic manipulation, all the cells in a convolutional filter are typically set to a constant pattern of ones and zeroes. In machine learning, convolutional filters are typically seeded with random numbers and then the network trains the ideal values.  
+#' 
+#' 2.Pooling layers - Reducing a matrix (or matrices) created by an earlier convolutional layer to a smaller matrix. Pooling usually involves taking either the maximum or average value across the pooled area. For example, suppose we have a 3x3 matrix. A pooling operation, just like a convolutional operation, divides that matrix into slices and then slides that convolutional operation by strides. For example, suppose the pooling operation divides the convolutional matrix into 2x2 slices with a 1x1 stride, then four pooling operations take place. Imagine that each pooling operation picks the maximum value of the four in that slice.  
+#' 
+#' Pooling helps enforce translational invariance in the input matrix.  
+#' 
+#' Pooling for vision applications is known more formally as spatial pooling. Time-series applications usually refer to pooling as temporal pooling. Less formally, pooling is often called subsampling or downsampling.  
+#' 
+#' 3.Dense layers - just a fully connected layer.  
+#' 
+#' Convolutional neural networks have had great success in certain kinds of problems, especially in image recognition.
+#' 
+#' ## A first CNN model
+#' 
+## ----simple_cnn_model, include=TRUE, echo=TRUE, eval=TRUE, collapse = TRUE, comment="", highlight=TRUE, background='#F7F7F7', tidy=TRUE, message=FALSE----
+simple_cnn_model <- keras_model_sequential() %>%
+  layer_embedding(input_dim = max_words + 1, output_dim = 16,
+                  input_length = max_length) %>%
+  layer_batch_normalization() %>%
+  layer_conv_1d(filter = 32, kernel_size = 5, activation = "relu") %>%
+  layer_max_pooling_1d(pool_size = 2) %>%
+  layer_conv_1d(filter = 64, kernel_size = 3, activation = "relu") %>%
+  layer_global_max_pooling_1d() %>% 
+  layer_dense(units = 64, activation = "relu") %>%
+  layer_dense(units = 1, activation = "sigmoid")
+
+simple_cnn_model
+
+#' 
+#' 
+#' 
+## ----simple_cnn_model_compile, echo=4:5, include=TRUE, eval=TRUE, collapse = TRUE, comment="", highlight=TRUE, background='#F7F7F7', tidy=TRUE, message=FALSE----
+# opt <- optimizer_sgd(lr = 0.001, decay = 1e-6)
+# opt <- optimizer_adam()
+# opt <- optimizer_sgd()
+opt <- optimizer_adam(lr = 0.0001, decay = 1e-6)
+simple_cnn_model %>% compile(
+  optimizer = opt,
+  loss = "binary_crossentropy",
+  metrics = c("accuracy")
+)
+
+#' 
+#' 
+#' 
+## ----simple_cnn_model_fit_val_d, include=TRUE, echo=TRUE, eval=TRUE, collapse = TRUE, comment="", highlight=TRUE, background='#F7F7F7', tidy=TRUE, message=FALSE----
+simple_cnn_val_history <- simple_cnn_model %>%
+  fit(
+    x = amazon_analysis,
+    y = label_analysis,
+    batch_size = 1024,
+    epochs = 7,
+    initial_epoch = 0,
+    validation_data = list(amazon_assess, label_assess),
+    verbose = 2
+  )
+
+simple_cnn_val_history
+
+#' 
+#' 
+#' "CNN Model Fit History using validation_data" Figure \ref{fig:model_14}  
+#' 
+## ----simple_cnn_model_fit_val_d_hist, echo=FALSE, eval=TRUE, comment="", warning=FALSE, message=FALSE, fig.pos="h!", fig.cap="CNN Model Fit History using validation_data\\label{fig:model_14}"----
+plot(simple_cnn_val_history)
+
+#' 
+#' 
+#' See Table \ref{tbl:simple_cnn_val_res} for "CNN Model Predictions using validation data"
+#' 
+## ----simple_cnn_val_res, echo=TRUE, eval=TRUE, collapse = TRUE, comment="", warning=FALSE, message=FALSE, highlight=TRUE, background='#F7F7F7', tidy=TRUE----
+simple_cnn_val_res <- keras_predict(simple_cnn_model, amazon_assess, label_assess)
+# head(simple_cnn_val_res)
+kable(head(simple_cnn_val_res), format="simple", caption="CNN Model Predictions using validation data\\label{tbl:simple_cnn_val_res}")
+
+#' 
+#' 
+#' See Table \ref{tbl:simple_cnn_val_res_metrics} for "CNN Model Metrics using validation data"
+#' 
+## ----simple_cnn_val_res_metrics, echo=TRUE, eval=TRUE, collapse = TRUE, comment="", warning=FALSE, message=FALSE, highlight=TRUE, background='#F7F7F7', tidy=TRUE----
+m2 <- metrics(simple_cnn_val_res, label, .pred_class)
+kable(m2, format="simple", caption="CNN Model Metrics using validation data\\label{tbl:simple_cnn_val_res_metrics}")
+
+#' 
+#' 
+#' "CNN Model Confusion Matrix using validation_data" Figure \ref{fig:model_15}
+#' 
+## ----simple_cnn_val_res_conf_mat, echo=FALSE, eval=TRUE, comment="", warning=FALSE, message=FALSE, fig.pos="h!", fig.cap="CNN Model Confusion Matrix using validation_data\\label{fig:model_15}"----
+simple_cnn_val_res %>%
+  conf_mat(label, .pred_class) %>%
+  autoplot(type = "heatmap")
+
+#' 
+#' 
+#' "CNN Model ROC curve using validation_data" Figure \ref{fig:model_16}
+#' 
+## ----simple_cnn_val_res_roc, echo=FALSE, eval=TRUE, comment="", warning=FALSE, message=FALSE, fig.pos="h!", fig.cap="CNN Model ROC curve using validation_data\\label{fig:model_16}"----
+simple_cnn_val_res %>%
+  roc_curve(truth = label, .pred_1) %>%
+  autoplot() +
+  labs(
+    title = "Receiver operator curve for Amazon Reviews"
+  )
+
+#' 
+#' 
+## ----cnn_best, echo=FALSE----------------------------------------------
+# Best CNN accuracy
+cnn_best_acc <- max(simple_cnn_val_history$metrics$val_accuracy) 
+
+# Lowest CNN Loss
+cnn_lowest_loss <- min(simple_cnn_val_history$metrics$val_loss)
+
+#' 
+#' 
+#' \newpage
+#' ## Results  
+#' 
+#' CNN model results Table \ref{tbl:cnn_results_table}:
+#' 
+## ---- cnn_results_table, echo=FALSE, eval=TRUE-------------------------
+results_table <- bind_rows(results_table,
+                           tibble(Index = "3",
+                                  Method = "CNN",
+                                  Accuracy = cnn_best_acc,
+                                  Loss = cnn_lowest_loss))
+
+kable(results_table, "simple",caption="CNN Model Results\\label{tbl:cnn_results_table}")
+# %>%
+#     kable_styling(latex_options=c("HOLD_position"), font_size=7)
+
+#' 
+#' 
+#' \newpage
+#' # Model sepCNN
+#' 
+#' A convolutional neural network architecture based on [Inception](https://github.com/tensorflow/tpu/tree/master/models/experimental/inception), but where Inception modules are replaced with depthwise separable convolutions. Also known as Xception.
+#' 
+#' A depthwise separable convolution (also abbreviated as separable convolution) factors a standard 3-D convolution into two separate convolution operations that are more computationally efficient: first, a depthwise convolution, with a depth of 1 (n x n x 1), and then second, a pointwise convolution, with length and width of 1 (1 x 1 x n).
+#' 
+#' To learn more, see [Xception: Deep Learning with Depthwise Separable Convolutions](https://arxiv.org/pdf/1610.02357.pdf).
+#' 
+#' ## A first sepCNN model
+#' 
+## ----sep_cnn_model, include=TRUE, echo=TRUE, eval=TRUE, collapse = TRUE, comment="", highlight=TRUE, background='#F7F7F7', tidy=TRUE, message=FALSE----
+sep_cnn_model <- keras_model_sequential() %>%
+  layer_embedding(input_dim = max_words + 1, output_dim = 16,
+                  input_length = max_length) %>%
+  # layer_batch_normalization() %>%
+  layer_dropout(0.2) %>%
+  layer_separable_conv_1d(filter = 32, kernel_size = 5, activation = "relu") %>%
+  layer_separable_conv_1d(filter = 32, kernel_size = 5, activation = "relu") %>%
+  layer_max_pooling_1d(pool_size = 2) %>%
+  layer_separable_conv_1d(filter = 64, kernel_size = 5, activation = "relu") %>%
+  layer_separable_conv_1d(filter = 64, kernel_size = 5, activation = "relu") %>%
+  layer_global_average_pooling_1d() %>% 
+  layer_dropout(0.2) %>%
+  # layer_dense(units = 64, activation = "relu") %>%
+  layer_dense(units = 1, activation = "sigmoid")
+
+sep_cnn_model
+
+#' 
+#' 
+#' 
+## ----sep_cnn_model_compile, include=TRUE, echo=TRUE, eval=TRUE, collapse = TRUE, comment="", highlight=TRUE, background='#F7F7F7', tidy=TRUE, message=FALSE----
+# opt <- optimizer_sgd(lr = 0.001, decay = 1e-6)
+# opt <- optimizer_adam()
+# opt <- optimizer_sgd()
+opt <- optimizer_adam(lr = 0.0001, decay = 1e-6)
+sep_cnn_model %>% compile(
+  optimizer = opt,
+  loss = "binary_crossentropy",
+  metrics = c("accuracy")
+)
+
+#' 
+#' 
+#' Here we use a [callback](https://tensorflow.rstudio.com/guide/keras/guide_keras/#sts=Callbacks).
+#' 
+#' keras::callback_early_stopping: Interrupt training when validation performance has stopped improving.  
+#' patience: number of epochs with no improvement after which training will be stopped.
+#' 
+#' Try ??keras::callback_early_stopping
+#' 
+## ----sep_cnn_model_fit-------------------------------------------------
+sep_cnn_val_history <- sep_cnn_model %>%
+  fit(
+    x = amazon_analysis,
+    y = label_analysis,
+    batch_size = 128,
+    epochs = 20,
+    initial_epoch = 0,
+    validation_data = list(amazon_assess, label_assess),
+    callbacks = list(callback_early_stopping(
+        monitor='val_loss', patience=2)),
+    verbose = 2
+  )
+
+sep_cnn_val_history
+
+#' 
+#' 
+#' "sepCNN Model Fit History using validation_data" Figure \ref{fig:model_17}
+#' 
+## ----sep_cnn_model_fit_val_d_hist, echo=FALSE, eval=TRUE, comment="", warning=FALSE, message=FALSE, fig.pos="h!", fig.cap="sepCNN Model Fit History using validation_data\\label{fig:model_17}"----
+plot(sep_cnn_val_history)
+
+#' 
+#' 
+#' See Table \ref{tbl:sep_cnn_val_res} for "sepCNN Model Predictions using validation data"
+#' 
+## ----sep_cnn_val_res---------------------------------------------------
+sep_cnn_val_res <- keras_predict(sep_cnn_model, amazon_assess, label_assess)
+# head(sep_cnn_val_res)
+kable(head(sep_cnn_val_res), format="simple", caption="sepCNN Model Predictions using validation data\\label{tbl:sep_cnn_val_res}")
+
+#' 
+#' 
+#' See Table \ref{tbl:sep_cnn_val_res_metrics} for "sepCNN Model Metrics using validation data"
+#' 
+## ----sep_cnn_val_res_metrics-------------------------------------------
+m3 <- metrics(sep_cnn_val_res, label, .pred_class)
+kable(m3, format="simple", caption="sepCNN Model Metrics using validation data\\label{tbl:sep_cnn_val_res_metrics}")
+
+#' 
+#' 
+#' "sepCNN Model Confusion Matrix using validation_data" Figure \ref{fig:model_18}
+#' 
+## ----sep_cnn_val_res_conf_mat, echo=FALSE, eval=TRUE, comment="", warning=FALSE, message=FALSE, fig.pos="h!", fig.cap="sepCNN Model Confusion Matrix using validation_data\\label{fig:model_18}"----
+sep_cnn_val_res %>%
+  conf_mat(label, .pred_class) %>%
+  autoplot(type = "heatmap")
+
+#' 
+#' 
+#' "sepCNN Model ROC curve using validation_data" Figure \ref{fig:model_19}
+#' 
+## ----sep_cnn_val_res_roc, echo=FALSE, eval=TRUE, comment="", warning=FALSE, message=FALSE, fig.pos="h!", fig.cap="sepCNN Model ROC curve using validation_data\\label{fig:model_19}"----
+sep_cnn_val_res %>%
+  roc_curve(truth = label, .pred_1) %>%
+  autoplot() +
+  labs(
+    title = "Receiver operator curve for Amazon Reviews"
+  )
+
+#' 
+#' 
+## ----sep_cnn_best, echo=FALSE------------------------------------------
+# Best sepCNN accuracy
+sep_cnn_best_acc <- max(sep_cnn_val_history$metrics$val_accuracy) 
+
+# Lowest sepCNN Loss
+sep_cnn_lowest_loss <- min(sep_cnn_val_history$metrics$val_loss)
+
+#' 
+#' 
+#' \newpage
+#' ## Results  
+#' 
+#' sepCNN model results Table \ref{tbl:sep_cnn_results_table}:
+#' 
+## ---- sep_cnn_results_table, echo=FALSE, eval=TRUE---------------------
+results_table <- bind_rows(results_table,
+                           tibble(Index = "4",
+                                  Method = "sepCNN",
+                                  Accuracy = sep_cnn_best_acc,
+                                  Loss = sep_cnn_lowest_loss))
+
+kable(results_table, "simple",caption="sepCNN Model Results\\label{tbl:sep_cnn_results_table}")
+# %>%
+#     kable_styling(latex_options=c("HOLD_position"), font_size=7)
+
+#' 
+#' 
+#' \newpage
+#' # Model BERT
+#' 
+#' ## About BERT  
+#' 
+#' In this model we will fine-tune BERT to perform sentiment analysis on our dataset.  
+#' 
+#' [BERT](https://arxiv.org/abs/1810.04805) and other Transformer encoder architectures have been wildly successful on a variety of tasks in NLP (natural language processing). They compute vector-space representations of natural language that are suitable for use in deep learning models. The BERT family of models uses the Transformer encoder architecture to process each token of input text in the full context of all tokens before and after, hence the name: Bidirectional Encoder Representations from Transformers.  
+#' 
+#' BERT models are usually pre-trained on a large corpus of text, then fine-tuned for specific tasks.
+#' 
+#' 
+#' ## References
+#' 
+#' [Tensorflow](https://www.tensorflow.org/) is an end-to-end open source platform for machine learning. It has a comprehensive, flexible ecosystem of tools, libraries and community resources that lets researchers push the state-of-the-art in ML and developers easily build and deploy ML powered applications.  
+#' 
+#' The [TensorFlow Hub](https://tfhub.dev/) lets you search and discover hundreds of trained, ready-to-deploy machine learning models in one place.
+#' 
+#' [Tensorflow for R](https://tensorflow.rstudio.com/) provides an R interface for Tensorflow.
+#' 
+#' ## Loading CSV data
+#' 
+#' Load CSV data from a file into a TensorFlow Dataset using tfdatasets.
+#' 
+#' ## Setup
+#' 
+## ----bert_setup, include=TRUE, echo=TRUE, eval=TRUE, collapse = TRUE, comment="", highlight=TRUE, background='#F7F7F7', tidy=TRUE, message=FALSE----
+library(keras)
+library(tfdatasets)
+library(reticulate)
+library(tidyverse)
+library(lubridate)
+library(tfhub)
+
+# A dependency of the preprocessing for BERT inputs
+# pip install -q -U tensorflow-text
+import("tensorflow_text")
+
+# You will use the AdamW optimizer from tensorflow/models.
+# pip install -q tf-models-official
+# to create AdamW optimizer
+o_nlp <- import("official.nlp")
+
+Sys.setenv(TFHUB_CACHE_DIR="C:/Users/bijoor/.cache/tfhub_modules")
+Sys.getenv("TFHUB_CACHE_DIR")
+
+
+#' 
+#' You could load this using read.csv, and pass the arrays to TensorFlow.
+#' If you need to scale up to a large set of files, or need a loader that
+#' integrates with TensorFlow and tfdatasets then use the make_csv_dataset
+#' function:
+#' 
+#' Now read the CSV data from the file and create a dataset.
+#' 
+#' ## Make datasets 
+#' 
+## ----make_datasets, include=TRUE, echo=TRUE, eval=TRUE, collapse = TRUE, comment="", highlight=TRUE, background='#F7F7F7', tidy=TRUE, message=FALSE----
+train_file_path <- file.path("amazon_review_polarity_csv/amazon_train.csv")
+
+batch_size <- 32
+
+train_dataset <- make_csv_dataset(
+  train_file_path, 
+  field_delim = ",",
+  batch_size = batch_size,
+  column_names = list("label", "title", "text"),
+  label_name = "label",
+  select_columns = list("label", "text"),
+  num_epochs = 1
+)
+
+
+train_dataset %>%
+  reticulate::as_iterator() %>% 
+  reticulate::iter_next() #%>% 
+  # reticulate::py_to_r()
+
+# ----------------------
+
+val_file_path <- file.path("amazon_review_polarity_csv/amazon_val.csv")
+
+val_dataset <- make_csv_dataset(
+  val_file_path, 
+  field_delim = ",",
+  batch_size = batch_size,
+  column_names = list("label", "title", "text"),
+  label_name = "label",
+  select_columns = list("label", "text"),
+  num_epochs = 1
+)
+
+
+val_dataset %>%
+  reticulate::as_iterator() %>% 
+  reticulate::iter_next()
+
+# -----------------------------------
+
+test_file_path <- file.path("amazon_review_polarity_csv/amazon_test.csv")
+
+
+test_dataset <- make_csv_dataset(
+  test_file_path, 
+  field_delim = ",",
+  batch_size = batch_size,
+  column_names = list("label", "title", "text"),
+  label_name = "label",
+  select_columns = list("label", "text"),
+  num_epochs = 1
+)
+
+test_dataset %>%
+  reticulate::as_iterator() %>% 
+  reticulate::iter_next()
+
+rm(amazon_orig_train, amazon_orig_test, amazon_train, amazon_val)
+rm(ids_train, train_file_path, test_file_path, val_file_path)
+
+#' 
+#' \newpage
+#' ## The preprocessing model
+#' 
+#' Text inputs need to be transformed to numeric token ids and arranged in several Tensors before being input to BERT. TensorFlow Hub provides a matching preprocessing model for the BERT models, which implements this transformation using TF ops from the TF.text library.  
+#' 
+#' The preprocessing model must be the one referenced by the documentation of the BERT model, which you can read at the URL [bert_en_uncased_preprocess](https://tfhub.dev/tensorflow/bert_en_uncased_preprocess/3)
+#' 
+## ----bert_preprocess_model, include=TRUE, echo=TRUE, eval=TRUE, collapse = TRUE, comment="", highlight=TRUE, background='#F7F7F7', tidy=TRUE, message=FALSE----
+bert_preprocess_model <- layer_hub(
+  handle = "https://tfhub.dev/tensorflow/bert_en_uncased_preprocess/3", trainable = FALSE, name='preprocessing'
+)
+
+#' 
+#' ## Using the BERT model
+#' 
+#' The BERT models return a map with 3 important keys: pooled_output, sequence_output, encoder_outputs:  
+#' 
+#' "pooled_output" represents each input sequence as a whole. The shape is [batch_size, H]. You can think of this as an embedding for the entire Amazon review.  
+#' 
+#' "sequence_output" represents each input token in the context. The shape is [batch_size, seq_length, H]. You can think of this as a contextual embedding for every token in the Amazon review.  
+#' 
+#' "encoder_outputs" are the intermediate activations of the L Transformer blocks. outputs["encoder_outputs"][i] is a Tensor of shape [batch_size, seq_length, 1024] with the outputs of the i-th Transformer block, for 0 <= i < L. The last value of the list is equal to sequence_output.  
+#' 
+#' For the fine-tuning you are going to use the pooled_output array.  
+#' 
+#' For more information about the base model's input and output you can follow the model's URL at [small_bert/bert_en_uncased_L-4_H-512_A-8](https://tfhub.dev/tensorflow/small_bert/bert_en_uncased_L-4_H-512_A-8/2)
+#' 
+#' 
+## ----bert_model, include=TRUE, echo=TRUE, eval=TRUE, collapse = TRUE, comment="", highlight=TRUE, background='#F7F7F7', tidy=TRUE, message=FALSE----
+bert_model <- layer_hub(
+  handle = "https://tfhub.dev/tensorflow/small_bert/bert_en_uncased_L-4_H-512_A-8/2",
+  trainable = TRUE, name='BERT_encoder'
+)
+
+#' 
+#' ## Define your model
+#' 
+#' We will create a very simple fine-tuned model, with the preprocessing model, the selected BERT model, one Dense and a Dropout layer.  
+#' 
+## ----model_i_o, include=TRUE, echo=TRUE, eval=TRUE, collapse = TRUE, comment="", highlight=TRUE, background='#F7F7F7', tidy=TRUE, message=FALSE----
+input <- layer_input(shape=shape(), dtype="string", name='text')
+
+output <- input %>%
+  bert_preprocess_model() %>%
+  bert_model %$%
+  pooled_output %>% 
+  layer_dropout(0.1) %>%
+  # layer_dense(units = 16, activation = "relu") %>%
+  layer_dense(units = 1, activation = "sigmoid", name='classifier')
+
+# summary(model)
+
+#' 
+## ----keras_model, include=TRUE, echo=TRUE, eval=TRUE, collapse = TRUE, comment="", highlight=TRUE, background='#F7F7F7', tidy=TRUE, message=FALSE----
+model <- keras_model(input, output)
+
+#' 
+#' 
+#' Loss function  
+#' 
+#' Since this is a binary classification problem and the model outputs a probability (a single-unit layer), you'll use "binary_crossentropy" loss function.  
+#' 
+#' Optimizer  
+#' 
+#' For fine-tuning, let's use the same optimizer that BERT was originally trained with: the "Adaptive Moments" (Adam). This optimizer minimizes the prediction loss and does regularization by weight decay (not using moments), which is also known as [AdamW](https://arxiv.org/abs/1711.05101).  
+#' 
+#' We will use the AdamW optimizer from [tensorflow/models](https://github.com/tensorflow/models).
+#' 
+#' For the learning rate (init_lr), you will use the same schedule as BERT pre-training: linear decay of a notional initial learning rate, prefixed with a linear warm-up phase over the first 10% of training steps (num_warmup_steps). In line with the BERT paper, the initial learning rate is smaller for fine-tuning (best of 5e-5, 3e-5, 2e-5).
+#' 
+#' 
+## ----keras_model_compile, include=TRUE, echo=TRUE, eval=TRUE, collapse = TRUE, comment="", highlight=TRUE, background='#F7F7F7', tidy=TRUE, message=FALSE----
+epochs = 5
+steps_per_epoch <- 2e6
+num_train_steps <- steps_per_epoch * epochs
+num_warmup_steps <- as.integer(0.1*num_train_steps)
+
+init_lr <- 3e-5
+opt <- o_nlp$optimization$create_optimizer(init_lr=init_lr,
+                                     num_train_steps=num_train_steps,
+                                  num_warmup_steps=num_warmup_steps,
+                                          optimizer_type='adamw')
+
+model %>%
+  compile(
+    loss = "binary_crossentropy",
+    optimizer = opt,
+    metrics = "accuracy"
+  )
+
+summary(model)
+
+#' 
+#' REMEMBER to change tr_count back to 10000 for better training.
+#' 
+#' Try a sample/subset to train/test code, and to reduce training time due to resource constraints use a smaller tr_count below.
+#' 
+## ----data_subset, include=TRUE, echo=TRUE, eval=TRUE, collapse = TRUE, comment="", highlight=TRUE, background='#F7F7F7', tidy=TRUE, message=FALSE----
+# 10000 will take approx 40 mins per epoch on my gpu/mem etc
+# 1000 will take approx 4 mins per epoch on my gpu/mem etc
+
+tr_count <- 10000
+take_tr <- 0.8 * tr_count
+train_slice <- train_dataset  %>% 
+  dataset_shuffle_and_repeat(buffer_size = take_tr * batch_size) %>% 
+  dataset_take(take_tr)
+
+take_val <- 0.2 * tr_count
+val_slice <- val_dataset  %>% 
+  dataset_shuffle_and_repeat(buffer_size = take_val * batch_size) %>% 
+  dataset_take(take_val)
+
+#'   
+#'   
+#' 
+## ----keras_model_fit, include=TRUE, echo=TRUE, eval=TRUE, collapse = TRUE, comment="", highlight=TRUE, background='#F7F7F7', tidy=TRUE, message=FALSE----
+epochs <- 5
+seed = 42
+
+history <- model %>% 
+  fit(
+    train_slice,
+    epochs = epochs,
+    validation_data = val_slice,
+    initial_epoch = 0,
+    verbose = 2
+  )
+
+#' 
+#' 
+#' "BERT Model Fit History using validation_data slice" Figure \ref{fig:model_20}  
+#' 
+## ----keras_model_fit_history, echo=FALSE, eval=TRUE, comment="", warning=FALSE, message=FALSE, fig.pos="h!", fig.cap="BERT Model Fit History using validation_data slice\\label{fig:model_20}"----
+plot(history)
+
+#'   
+#'   
+#' Evaluate the model  
+#' 
+#' Let's see how the model performs. Two values will be returned. Loss (a number which represents the error, lower values are better), and accuracy.
+#' 
+#' Takes too long, so skipping it for now. Using test_slice instead.
+## ----keras_model_eval_all, eval=FALSE, include=TRUE, echo=TRUE, collapse = TRUE, comment="", highlight=TRUE, background='#F7F7F7', tidy=TRUE, message=FALSE----
+model %>% evaluate(test_dataset)
+
+#'   
+#' Using test_slice instead.  
+#' 
+## ----keras_model_eval_subset, include=TRUE, echo=TRUE, eval=TRUE, collapse = TRUE, comment="", highlight=TRUE, background='#F7F7F7', tidy=TRUE, message=FALSE----
+test_slice <- test_dataset  %>% 
+  dataset_take(100)
+
+model %>% evaluate(test_slice)
+
+#' 
+#' 
+## ----bert_best, echo=FALSE---------------------------------------------
+# Best BERT accuracy
+bert_best_acc <-  max(history$metrics$val_accuracy) 
+
+# Lowest BERT Loss
+bert_lowest_loss <- min(history$metrics$val_loss)
+
+#' 
+#' 
+#' \newpage
+#' ## Results  
+#' 
+#' BERT model results Table \ref{tbl:bert_results_table}:
+#' 
+## ---- bert_results_table, echo=FALSE, eval=TRUE------------------------
+results_table <- bind_rows(results_table,
+                           tibble(Index = "5",
+                                  Method = "BERT",
+                                  Accuracy = bert_best_acc,
+                                  Loss = bert_lowest_loss))
+
+kable(results_table, "simple",caption="BERT Model Results\\label{tbl:bert_results_table}")
+# %>%
+#     kable_styling(latex_options=c("HOLD_position"), font_size=7)
+
+#'  
+#' 
+#' 
+## ----end_time----------------------------------------------------------
+# Stop the clock
+# proc.time() - ptm
+Sys.time()
+
+#' 
+#' 
+#' <!-- ```{r knit_exit} -->
+#' <!-- knitr::knit_exit() -->
+#' <!-- ``` -->
+#' 
+#' <!-- \newpage -->
+#' 
+#' <!-- # Results -->
+#' 
+#' ---  
+#' 
+#' \newpage
+#' # Conclusion
+#' 
+#' In this project, we attempted to significantly simplify the process of selecting a text classification model. For a given dataset, our goal was to find the algorithm that achieved close to maximum accuracy while minimizing computation time required for training. 
+#' 
+#' CNNs are a type of neural network that can learn local spatial patterns. They essentially perform feature extraction, which can then be used efficiently in later layers of a network. Their simplicity and fast running time, compared to other models, makes them excellent candidates for supervised models for text.  
+#' 
+#' Based on our results and inspite of using only a fraction of our data due to (my) resource limitations, we agree with Google and conclude that sepCNN's and/or BERT helped us achieve our goal of simplicity, minimum compute time and maximum accuracy.  
+#' 
+#' As of now, my future attempts in ML will be in NLP related activities.
+#' 
+#' ---  
+#' 
+#' \newpage
+#' # Appendix: All code for this report
+#' 
+## ----ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE--------------
+## NA
+
+#' 
+#' ---  
+#' 
+#' \newpage
+#' 
+#' Terms like generate\index{generate} and some\index{others} will also show up.
+#' 
+#' \printindex
+#' 
+#' 
+## ----knitr_knit_exit---------------------------------------------------
+	knitr::knit_exit()
+
+#' 
+#' \newpage
+#' # List of tables{-}
+#' \renewcommand{\listtablename}{} <!-- removes default section name -->
+#' \listoftables
+#' 
+#' ---  
+#' 
+#' \newpage
+#' # List of figures{-}
+#' \renewcommand{\listfigurename}{}
+#' \listoffigures
+#' 
+#' ---  
+#' 
+#' 
