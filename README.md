@@ -31,6 +31,7 @@ Please select file named "amazon_review_polarity_csv.tar.gz" and download it to 
 
 Download Location URL : [Xiang Zhang Google Drive](https://drive.google.com/drive/folders/0Bz8a_Dbh9Qhbfll6bVpmNUtUcFdjYmF2SEpmZUZUcVNiMUw1TWN6RDV3a0JHT3kxLVhVR2M?resourcekey=0-TLwzfR2O-D2aPitmn5o9VQ)  
 
+Once downloaded, the script should take care of the rest.  
 
 ---  
 
