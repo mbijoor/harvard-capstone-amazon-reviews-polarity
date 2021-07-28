@@ -1965,14 +1965,22 @@ Sys.time()
 <!-- knitr::knit_exit() -->
 <!-- ``` -->
 
-\newpage
+<!-- \newpage -->
 
-# Results
+<!-- # Results -->
 
 ---  
 
 \newpage
 # Conclusion
+
+In this project, we attempted to significantly simplify the process of selecting a text classification model. For a given dataset, our goal was to find the algorithm that achieved close to maximum accuracy while minimizing computation time required for training. 
+
+CNNs are a type of neural network that can learn local spatial patterns. They essentially perform feature extraction, which can then be used efficiently in later layers of a network. Their simplicity and fast running time, compared to other models, makes them excellent candidates for supervised models for text.  
+
+Based on our results and inspite of using only a fraction of our data due to (my) resource limitations, we agree with Google and conclude that sepCNN's and/or BERT helped us achieve our goal of simplicity, minimum compute time and maximum accuracy.  
+
+As of now, my future attempts in ML will be in NLP related activities.
 
 ---  
 
